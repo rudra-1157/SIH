@@ -1756,4 +1756,184 @@ input[type=range]::-webkit-slider-thumb {
   color: var(--text-dim);
 }
 
+/* Closed-Loop Intelligence Pipeline Ribbon */
+.ooda-pipeline-strip {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: #040A10;
+  border: 1px solid #132433;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin-top: 8px;
+  overflow-x: auto;
+  min-height: 42px;
+}
+
+.ooda-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.25s ease;
+  flex-direction: row;
+  position: relative;
+}
+
+/* Steps that have already been processed in this OODA cycle */
+.ooda-step.completed {
+  background: rgba(16, 185, 129, 0.06);
+  border-color: rgba(16, 185, 129, 0.22);
+}
+.ooda-step.completed .ooda-num {
+  background: rgba(16, 185, 129, 0.4);
+  color: #10B981;
+}
+.ooda-step.completed .ooda-txt {
+  color: rgba(16, 185, 129, 0.6);
+}
+
+.ooda-step.active {
+  background: rgba(0, 210, 255, 0.12);
+  border-color: rgba(0, 210, 255, 0.45);
+  box-shadow: 0 0 8px rgba(0, 210, 255, 0.2);
+}
+
+.ooda-step.active-warn {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.25);
+}
+
+.ooda-step.active-danger {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.25);
+}
+
+.ooda-num {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFF;
+}
+
+.ooda-step.active .ooda-num {
+  background: #00D2FF;
+  color: #040A10;
+}
+.ooda-step.active-warn .ooda-num {
+  background: #F59E0B;
+  color: #040A10;
+}
+.ooda-step.active-danger .ooda-num {
+  background: #EF4444;
+  color: #fff;
+}
+
+.ooda-txt {
+  font-family: var(--font-tech);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.ooda-step.active .ooda-txt {
+  color: #00D2FF;
+}
+.ooda-step.active-warn .ooda-txt {
+  color: #F59E0B;
+}
+.ooda-step.active-danger .ooda-txt {
+  color: #EF4444;
+}
+
+/* Dynamic scenario-specific step hint shown below the active OODA step label */
+.ooda-hint {
+  display: block;
+  font-family: var(--font-main);
+  font-size: 9px;
+  font-style: italic;
+  color: rgba(0, 210, 255, 0.75);
+  line-height: 1.25;
+  max-width: 140px;
+  white-space: normal;
+  word-break: break-word;
+  margin-top: 2px;
+  letter-spacing: 0;
+  font-weight: 400;
+  text-transform: none;
+}
+.ooda-step.active-warn .ooda-hint {
+  color: rgba(245, 158, 11, 0.85);
+}
+.ooda-step.active-danger .ooda-hint {
+  color: rgba(239, 68, 68, 0.9);
+}
+
+.ooda-arrow {
+  font-size: 8px;
+  color: var(--text-dim);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+/* Dynamic Decision Badges */
+.sim-decision-badge {
+  font-family: var(--font-tech);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 9px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.badge-continue {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid #10B981;
+  color: #34D399;
+}
+
+.badge-monitor {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid #F59E0B;
+  color: #FBBF24;
+}
+
+.badge-abort {
+  background: rgba(249, 115, 22, 0.2);
+  border: 1px solid #F97316;
+  color: #FB923C;
+}
+
+.badge-critical {
+  background: rgba(239, 68, 68, 0.25);
+  border: 1px solid #EF4444;
+  color: #F87171;
+  animation: pulse-danger 1s infinite alternate;
+}
+
+@keyframes pulse-danger {
+  from { box-shadow: 0 0 4px rgba(239, 68, 68, 0.3); }
+  to { box-shadow: 0 0 12px rgba(239, 68, 68, 0.8); }
+}
+
+
 

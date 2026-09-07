@@ -434,17 +434,17 @@
           <!-- 1. Mission Scenario & Trajectory Selection -->
           <div class="section-card">
             <div class="section-header">
-              <div class="sec-title"><i class="fa-solid fa-vial-circle-check"></i> 1. Synthetic Data Scenario &amp; Trajectory Selector</div>
-              <span id="simDatasetStatus" class="status-pill status-ack" style="font-size:10px;">Dataset Loaded</span>
+              <div class="sec-title"><i class="fa-solid fa-vial-circle-check"></i> 1. Scenario &amp; Trajectory Selector</div>
+              <span id="simDatasetStatus" class="status-pill status-ack" style="font-size:10px;">12 Conditions Available</span>
             </div>
             <div class="sim-card-body">
               <div class="sim-select-row" style="display:grid; grid-template-columns: 1.4fr 1fr; gap:12px; margin-bottom:10px;">
                 <div>
                   <label class="form-label" style="font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px; display:block;">
-                    Detected Scenario / Condition:
+                    Scenario / Operational Condition:
                   </label>
                   <select id="simScenarioSelect" class="form-select" style="width:100%;">
-                    <option value="" disabled selected>Scanning synthetic dataset…</option>
+                    <option value="" disabled selected>Loading scenarios…</option>
                   </select>
                 </div>
                 <div>
@@ -457,7 +457,22 @@
                 </div>
               </div>
               <div id="scenarioInfo" class="scenario-info-banner">
-                Scanning synthetic dataset files for conditions and trajectories…
+                Select a scenario above to inspect synthetic trajectories and affected components.
+              </div>
+
+              <!-- Closed-Loop Intelligence Ribbon -->
+              <div class="ooda-pipeline-strip">
+                <div class="ooda-step active" id="oodaDetect"><span class="ooda-num">1</span> <span class="ooda-txt">Detect</span></div>
+                <div class="ooda-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+                <div class="ooda-step" id="oodaAnalyze"><span class="ooda-num">2</span> <span class="ooda-txt">Analyze</span></div>
+                <div class="ooda-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+                <div class="ooda-step" id="oodaSeverity"><span class="ooda-num">3</span> <span class="ooda-txt">Severity</span></div>
+                <div class="ooda-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+                <div class="ooda-step" id="oodaRisk"><span class="ooda-num">4</span> <span class="ooda-txt">Predict Risk</span></div>
+                <div class="ooda-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+                <div class="ooda-step" id="oodaDecide"><span class="ooda-num">5</span> <span class="ooda-txt">Decide</span></div>
+                <div class="ooda-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+                <div class="ooda-step" id="oodaMonitor"><span class="ooda-num">6</span> <span class="ooda-txt">Monitor Loop</span></div>
               </div>
             </div>
           </div>
@@ -466,7 +481,8 @@
           <div class="section-card" id="simLiveTelemetryCard">
             <div class="section-header">
               <div class="sec-title"><i class="fa-solid fa-satellite-dish"></i> 2. Live Telemetry &amp; Physics Residuals</div>
-              <div class="sim-meta-right" style="display:flex; align-items:center; gap:10px;">
+              <div class="sim-meta-right" style="display:flex; align-items:center; gap:8px;">
+                <span id="simDecisionBadge" class="sim-decision-badge badge-continue">CONTINUE</span>
                 <span id="simPhaseBadge" class="sim-phase-badge">STANDBY</span>
                 <span id="simCycleCounter" class="sim-cycle-tag">Cycle 0 / 0</span>
               </div>
@@ -508,15 +524,19 @@
               <!-- AI Inference Diagnostic Strip -->
               <div class="sim-ai-strip">
                 <div class="ai-strip-item">
-                  <span class="ai-strip-lbl">Engine Health:</span>
+                  <span class="ai-strip-lbl">Health:</span>
                   <strong class="val-blue" id="simAiHealthVal">--</strong>
                 </div>
                 <div class="ai-strip-item">
-                  <span class="ai-strip-lbl">AI Detected Fault:</span>
+                  <span class="ai-strip-lbl">Severity:</span>
+                  <strong class="val-green" id="simAiSevVal">--</strong>
+                </div>
+                <div class="ai-strip-item">
+                  <span class="ai-strip-lbl">Detected Fault:</span>
                   <strong class="val-orange" id="simAiFaultVal">--</strong>
                 </div>
                 <div class="ai-strip-item">
-                  <span class="ai-strip-lbl">Affected Component:</span>
+                  <span class="ai-strip-lbl">Component:</span>
                   <strong class="val-cyan" id="simAiCompVal">--</strong>
                 </div>
                 <div class="ai-strip-item">
@@ -528,12 +548,12 @@
                   <strong class="val-green" id="simAiRulVal">--</strong>
                 </div>
                 <div class="ai-strip-item">
-                  <span class="ai-strip-lbl">Mission Reliability:</span>
-                  <strong class="val-purple" id="simAiRelVal">--</strong>
+                  <span class="ai-strip-lbl">Mission Risk:</span>
+                  <strong class="val-purple" id="simAiRiskVal">--</strong>
                 </div>
                 <div class="ai-strip-item">
-                  <span class="ai-strip-lbl">Success Prob:</span>
-                  <strong class="val-cyan" id="simAiSuccessVal">--</strong>
+                  <span class="ai-strip-lbl">Tactical Decision:</span>
+                  <strong id="simAiDecVal" style="color:#10B981;font-weight:bold;">--</strong>
                 </div>
               </div>
             </div>

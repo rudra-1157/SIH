@@ -1208,34 +1208,92 @@ function drawFeasibilityDonut(pct) {
 }
 
 // ==========================================================================
-// 4. DYNAMIC EVALUATION: GO / CAUTION / INSPECTION REQUIRED
+// 4. DYNAMIC EVALUATION: CONTINUE / CONTINUE + MONITOR / ABORT/RETURN / CRITICAL → ABORT
+//    Decisions are SCENARIO-AWARE: each scenario has its own health/severity thresholds.
+//    No values are hardcoded to a fixed fault — they depend on the evolving condition
+//    and mission requirements (planned duration, altitude, phase).
 // ==========================================================================
-function evaluateMissionDecision(healthPct, rulHrs, activeFaultClass, egt, vib) {
-  let recommendation = "GO";
+function evaluateMissionDecision(healthPct, rulHrs, activeFaultClass, egt, vib, severityPct = 0, scenarioKey = 'healthy', extraContext = {}) {
+  let recommendation = "CONTINUE";
   let statusClass = "go-status";
-  let badgeClass = "badge-go";
-  let description = "Engine fit for planned mission";
-  let feasibilityScore = 88;
+  let badgeClass = "badge-continue";
+  let description = "Engine operating nominal; flight cleared to continue";
+  let feasibilityScore = 92;
 
-  const isSevereFault = activeFaultClass !== 0 && activeFaultClass !== undefined;
+  // Retrieve scenario-specific thresholds (fall back to safe defaults if scenario unknown)
+  const scenarioCfg = SIM_SCENARIOS[scenarioKey] || SIM_SCENARIOS['healthy'];
+  const sev = scenarioCfg.sevThresholds || {};
 
-  if (healthPct < 50 || rulHrs < 15 || (isSevereFault && (egt > 820 || vib > 0.3))) {
-    recommendation = "INSPECTION REQUIRED";
+  // Per-scenario critical thresholds (with universal backstops)
+  const critHealth    = sev.criticalHealth ?? 55;
+  const abortHealth   = sev.abortHealth   ?? 70;
+  const monitorHealth = sev.monitorHealth ?? 85;
+  const critSev       = sev.criticalSev   ?? 65;
+  const abortSev      = sev.abortSev      ?? 40;
+  const monitorSev    = sev.monitorSev    ?? 18;
+  const critEgt       = sev.criticalEgt   ?? 820;
+  const abortEgt      = sev.abortEgt      ?? 780;
+  const critVib       = sev.criticalVib   ?? 0.35;
+  const abortVib      = sev.abortVib      ?? 0.28;
+
+  // Extra context from residuals (scenario-specific sensor deltas)
+  const oilPDev  = extraContext.oilPDev  ?? 0;
+  const fuelDev  = extraContext.fuelDev  ?? 0;
+  const rpmDev   = extraContext.rpmDev   ?? 0;
+
+  // Scenario-specific additional checks
+  const oilCrit  = sev.criticalOilPDev != null  ? (oilPDev  <= sev.criticalOilPDev)  : false;
+  const oilAbort = sev.abortOilPDev    != null  ? (oilPDev  <= sev.abortOilPDev)     : false;
+  const fuelCrit = sev.criticalFuelDev != null  ? (fuelDev  <= sev.criticalFuelDev)   : false;
+  const fuelAbort= sev.abortFuelDev    != null  ? (fuelDev  <= sev.abortFuelDev)      : false;
+  const rpmCrit  = sev.criticalRpmDev  != null  ? (rpmDev   <= sev.criticalRpmDev)    : false;
+  const rpmAbort = sev.abortRpmDev     != null  ? (rpmDev   <= sev.abortRpmDev)       : false;
+
+  const isFault = activeFaultClass !== 0 && activeFaultClass !== undefined && activeFaultClass !== 'healthy';
+
+  // Mission deadline pressure — if RUL margin is tight, escalate decision level
+  const rulMarginCritical = rulHrs < 5;
+  const rulMarginAbort    = rulHrs < plannedMissionDurationHrs;
+  const rulMarginMonitor  = rulHrs < (plannedMissionDurationHrs * 1.5);
+
+  // Build decision tier flags
+  const isCriticalStress = egt > critEgt || vib > critVib || healthPct < critHealth ||
+                            severityPct >= critSev || oilCrit || fuelCrit || rpmCrit;
+  const isAbortStress    = egt > abortEgt || vib > abortVib || healthPct < abortHealth ||
+                            rulMarginAbort || severityPct >= abortSev ||
+                            oilAbort || fuelAbort || rpmAbort;
+  const isMonitorStress  = isFault || healthPct < monitorHealth || rulMarginMonitor ||
+                            severityPct >= monitorSev;
+
+  if (isCriticalStress || rulMarginCritical) {
+    recommendation = "CRITICAL → ABORT";
     statusClass = "nogo-status";
-    badgeClass = "badge-inspection";
-    description = "Immediate ground inspection required";
-    feasibilityScore = 35;
-  } else if (healthPct < 75 || rulHrs < 25 || plannedMissionDurationHrs > (rulHrs * 0.75) || isSevereFault) {
-    recommendation = "CAUTION";
+    badgeClass = "badge-critical";
+    description = `${scenarioCfg.name}: Critical anomaly in ${scenarioCfg.component} — immediate emergency abort & descent`;
+    feasibilityScore = Math.max(10, Math.round(20 - (100 - healthPct) * 0.1));
+  } else if (isAbortStress) {
+    recommendation = "ABORT/RETURN";
+    statusClass = "nogo-status";
+    badgeClass = "badge-abort";
+    description = `${scenarioCfg.name}: Degradation in ${scenarioCfg.component} threatens completion — execute controlled RTB`;
+    feasibilityScore = Math.max(30, Math.round(55 - severityPct * 0.2 - (100 - healthPct) * 0.2));
+  } else if (isMonitorStress) {
+    recommendation = "CONTINUE + MONITOR";
     statusClass = "caution-status";
-    badgeClass = "badge-caution";
-    description = "Degradation trend detected; monitor telemetry";
-    feasibilityScore = 68;
+    badgeClass = "badge-monitor";
+    description = `${scenarioCfg.name}: Divergence in ${scenarioCfg.component} detected — increase sampling & monitor closely`;
+    feasibilityScore = Math.max(55, Math.round(78 - severityPct * 0.2));
+  } else {
+    recommendation = "CONTINUE";
+    statusClass = "go-status";
+    badgeClass = "badge-continue";
+    description = `${scenarioCfg.name}: ${scenarioCfg.component} nominal — cleared to continue mission`;
+    feasibilityScore = Math.min(98, Math.round(90 + (healthPct - 90) * 0.5));
   }
 
   const decisionText = document.getElementById('missionDecisionText');
   if (decisionText) {
-    decisionText.textContent = `RECOMMENDATION: ${recommendation}`;
+    decisionText.textContent = `DECISION: ${recommendation}`;
     decisionText.className = badgeClass;
   }
 
@@ -1246,13 +1304,13 @@ function evaluateMissionDecision(healthPct, rulHrs, activeFaultClass, egt, vib) 
     document.getElementById('readinessDesc').textContent = description;
     const icon = document.getElementById('readinessIcon');
     if (icon) {
-      icon.className = recommendation === 'GO' ? 'fa-solid fa-circle-check' :
-                       recommendation === 'CAUTION' ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-xmark';
+      icon.className = recommendation === 'CONTINUE' ? 'fa-solid fa-circle-check' :
+                       recommendation === 'CONTINUE + MONITOR' ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-plane-slash';
     }
   }
 
   document.getElementById('feasibilityPct').textContent = `${feasibilityScore}%`;
-  document.getElementById('feasibilityStatus').textContent = recommendation === 'GO' ? 'Optimal' : recommendation === 'CAUTION' ? 'Acceptable' : 'High Risk';
+  document.getElementById('feasibilityStatus').textContent = recommendation === 'CONTINUE' ? 'Optimal' : recommendation === 'CONTINUE + MONITOR' ? 'Acceptable' : 'High Risk';
   drawFeasibilityDonut(feasibilityScore);
 
   const homeFeas = document.getElementById('homeFeasVal');
@@ -1424,7 +1482,7 @@ function updateCycle(index) {
 }
 
 // ==========================================================================
-// 6. SIMULATOR LAB LOGIC — DYNAMIC DATASET-DRIVEN MISSION SIMULATOR
+// 6. SIMULATOR LAB LOGIC — CLOSED-LOOP INTELLIGENCE & 12 SCENARIOS
 // ==========================================================================
 let ALL_SYNTHETIC_DATA = [];
 let SYNTHETIC_UNITS = {};         // { uid: [rows…] }
@@ -1436,8 +1494,223 @@ let liveCycleCount = 0;
 let liveTargetFault = null;
 let lastPhaseLabel = '';
 let hasLoggedFaultTimeline = false;
+let currentOodaStage = 0;
 
-function getFaultComponentDetails(faultName) {
+// The 12 User-Requested Operational Scenarios & Physics Mappings
+// Each scenario includes:
+//   baseFault     – synthetic dataset fault label to select unit trajectories from
+//   sevThresholds – sensor-specific critical trigger values for SCENARIO-AWARE decision engine
+//   oodaHints     – what each OODA stage label shows dynamically in the UI
+const SIM_SCENARIOS = {
+  'healthy': {
+    name: 'Healthy',
+    label: '✅ Healthy (Nominal Baseline)',
+    baseFault: 'healthy',
+    component: 'All Propulsion Subsystems Nominal',
+    camKey: 'rpm',
+    desc: 'Normal flight operation within all nominal thermal and mechanical tolerances.',
+    sevThresholds: { criticalHealth: 55, abortHealth: 72, monitorHealth: 88,
+                     criticalSev: 65, abortSev: 40, monitorSev: 15 },
+    oodaHints: ['Scanning all sensor channels for baseline deviation',
+                'Cross-checking physics model residuals',
+                'All parameters within nominal limits',
+                'RUL trend stable; no mission risk projected',
+                'Decision engine: CONTINUE mission',
+                'Continuous nominal monitoring active']
+  },
+  'overheating': {
+    name: 'Overheating',
+    label: '🔥 Overheating',
+    baseFault: 'cooling_airflow_blockage',
+    component: 'Cylinder Heads & Cooling Baffles',
+    camKey: 'cht',
+    desc: 'Rapid CHT & oil temperature accumulation threatening thermal overload.',
+    sevThresholds: { criticalHealth: 58, abortHealth: 72, monitorHealth: 85,
+                     criticalSev: 60, abortSev: 38, monitorSev: 18,
+                     criticalEgt: 810, abortEgt: 775 },
+    oodaHints: ['CHT deviation detected — thermal rise above baseline',
+                'AI isolating cooling-path degradation signature',
+                'Assessing cylinder head thermal stress index',
+                'Predicting time-to-overheat at current rate',
+                'Thermal risk decision: evaluating abort threshold',
+                'Monitoring CHT delta at accelerated 2-cycle rate']
+  },
+  'oil_starvation': {
+    name: 'Low Oil Pressure / Oil Starvation',
+    label: '⚠️ Low Oil Pressure / Oil Starvation',
+    baseFault: 'oil_starvation',
+    component: 'Oil Sump, Pump & Lubrication Loop',
+    camKey: 'oil',
+    desc: 'Severe drop in lubrication pressure creating friction heating and seizure risk.',
+    sevThresholds: { criticalHealth: 60, abortHealth: 74, monitorHealth: 86,
+                     criticalSev: 55, abortSev: 35, monitorSev: 15,
+                     criticalOilPDev: -25, abortOilPDev: -15 },
+    oodaHints: ['Oil pressure residual: significant negative deviation detected',
+                'Lubrication loop integrity analysis via AI pipeline',
+                'Assessing seizure risk from friction coefficient rise',
+                'Predicting bearing damage onset at current oil loss rate',
+                'Critical lubrication hazard — decision escalated',
+                'Oil pressure trending — emergency monitoring loop']
+  },
+  'oil_pump_degradation': {
+    name: 'Oil Pump Degradation',
+    label: '⚙️ Oil Pump Degradation',
+    baseFault: 'oil_starvation',
+    component: 'Positive Displacement Oil Pump',
+    camKey: 'oil',
+    desc: 'Progressive mechanical delivery decay in the oil circulation pump.',
+    sevThresholds: { criticalHealth: 58, abortHealth: 70, monitorHealth: 83,
+                     criticalSev: 60, abortSev: 38, monitorSev: 18,
+                     criticalOilPDev: -20, abortOilPDev: -12 },
+    oodaHints: ['Gradual oil pressure loss pattern detected in residuals',
+                'Pump discharge capacity degradation model fitting',
+                'Severity scoring: progressive mechanical wear index',
+                'Projecting pump failure onset from degradation slope',
+                'Return-to-base threshold: evaluating maintenance urgency',
+                'Pump efficiency monitoring — next inspection interval']
+  },
+  'fuel_system_fault': {
+    name: 'Fuel-System Fault',
+    label: '⛽ Fuel-System Fault',
+    baseFault: 'fuel_pump_degradation',
+    component: 'Mechanical Fuel Pump & Supply Lines',
+    camKey: 'fuel',
+    desc: 'Loss of fuel delivery pressure leading to lean mixture and combustion surge.',
+    sevThresholds: { criticalHealth: 55, abortHealth: 70, monitorHealth: 84,
+                     criticalSev: 58, abortSev: 36, monitorSev: 16,
+                     criticalFuelDev: -18, abortFuelDev: -10 },
+    oodaHints: ['Fuel flow rate drop below twin baseline detected',
+                'Lean-mixture EGT spike pattern being analyzed by AI',
+                'Severity: fuel-starvation combustion instability risk',
+                'Predicting engine flame-out probability at current rate',
+                'Fuel emergency: decision threshold exceeded — RTB',
+                'Fuel flow monitoring — cross-checking with RPM drift']
+  },
+  'injector_fault': {
+    name: 'Injector Fault',
+    label: '💉 Injector Fault',
+    baseFault: 'fuel_injector_clog',
+    component: 'Electronic Fuel Injectors & Rail',
+    camKey: 'fuel',
+    desc: 'Nozzle spray restriction causing cylinder thermal asymmetry.',
+    sevThresholds: { criticalHealth: 57, abortHealth: 71, monitorHealth: 84,
+                     criticalSev: 60, abortSev: 38, monitorSev: 17,
+                     criticalEgt: 800, abortEgt: 760 },
+    oodaHints: ['Inter-cylinder EGT asymmetry anomaly detected',
+                'AI isolating injector-clog signature from residuals',
+                'Severity: cylinder thermal imbalance stress index',
+                'Predicting piston/valve damage risk from hot-spot',
+                'Cylinder asymmetry: deciding injector isolation feasibility',
+                'EGT spread monitoring — watching for runaway cylinder']
+  },
+  'misfire_ignition': {
+    name: 'Misfire / Ignition Fault',
+    label: '⚡ Misfire / Ignition Fault',
+    baseFault: 'spark_plug_fouling',
+    component: 'Dual Spark Plugs & Ignition Harness',
+    camKey: 'cht',
+    desc: 'Fouled electrodes causing cylinder misfire, unburnt fuel exhaust surge & vibration.',
+    sevThresholds: { criticalHealth: 56, abortHealth: 71, monitorHealth: 84,
+                     criticalSev: 58, abortSev: 36, monitorSev: 16,
+                     criticalVib: 0.32, abortVib: 0.24 },
+    oodaHints: ['RPM dropout and vibration spike pattern detected',
+                'AI correlating misfire signature with CHT/EGT drop',
+                'Severity: combustion-event skip rate and unburnt fuel',
+                'Predicting catalyst damage and EGT surge trajectory',
+                'Misfire risk: deciding between monitor and abort',
+                'Ignition health monitoring — dual-magneto cross-check']
+  },
+  'combustion_instability': {
+    name: 'Combustion Instability',
+    label: '🔥 Combustion Instability',
+    baseFault: 'exhaust_valve_leak',
+    component: 'Exhaust Valves & Exhaust Manifold',
+    camKey: 'egt',
+    desc: 'Valve seating loss producing cyclic pressure blowby and high exhaust thermal transients.',
+    sevThresholds: { criticalHealth: 58, abortHealth: 72, monitorHealth: 85,
+                     criticalSev: 60, abortSev: 38, monitorSev: 18,
+                     criticalEgt: 815, abortEgt: 780 },
+    oodaHints: ['EGT cyclic instability and pressure blowby signature detected',
+                'AI analyzing exhaust valve seating loss from residuals',
+                'Severity: combustion efficiency loss index computed',
+                'Predicting valve failure and power-loss event onset',
+                'Combustion risk: escalating decision to ABORT/RETURN',
+                'EGT variance monitoring — valve thermal stress loop']
+  },
+  'progressive_engine_wear': {
+    name: 'Progressive Engine Wear',
+    label: '⏳ Progressive Engine Wear',
+    baseFault: 'bearing_wear',
+    component: 'Crankshaft Bearings & Liners',
+    camKey: 'vib',
+    desc: 'Gradual mechanical wear reducing efficiency and increasing internal friction.',
+    sevThresholds: { criticalHealth: 52, abortHealth: 67, monitorHealth: 80,
+                     criticalSev: 65, abortSev: 42, monitorSev: 20,
+                     criticalVib: 0.30, abortVib: 0.22 },
+    oodaHints: ['Progressive vibration trend and RUL decay detected',
+                'AI fitting bearing wear model to longitudinal residuals',
+                'Severity: cumulative damage index from friction rise',
+                'RUL projection: estimating remaining useful life slope',
+                'Wear-rate decision: planned maintenance vs continue',
+                'Long-term wear monitoring — trend slope watching']
+  },
+  'high_vibration': {
+    name: 'High Vibration / Mechanical Imbalance',
+    label: '📈 High Vibration / Mechanical Imbalance',
+    baseFault: 'bearing_wear',
+    component: 'Crankcase & Propeller Reduction Hub',
+    camKey: 'vib',
+    desc: 'Elevated RMS vibration and harmonic oscillation exceeding safe airframe limits.',
+    sevThresholds: { criticalHealth: 55, abortHealth: 68, monitorHealth: 82,
+                     criticalSev: 58, abortSev: 36, monitorSev: 16,
+                     criticalVib: 0.33, abortVib: 0.25 },
+    oodaHints: ['RMS vibration spike above airframe-safe threshold detected',
+                'AI isolating harmonic imbalance signature from baseline',
+                'Severity: structural resonance risk index assessed',
+                'Predicting fatigue failure onset in propeller hub',
+                'Vibration emergency: abort threshold evaluation active',
+                'Vibration RMS monitoring — gearbox resonance scan']
+  },
+  'sensor_drift': {
+    name: 'Sensor Drift / Failure',
+    label: '📡 Sensor Drift / Failure',
+    baseFault: 'cooling_airflow_blockage',
+    component: 'Transducer Sensor Harness',
+    camKey: 'vib',
+    desc: 'Telemetry transducer drift creating persistent residuals against physics baseline.',
+    sevThresholds: { criticalHealth: 60, abortHealth: 73, monitorHealth: 87,
+                     criticalSev: 62, abortSev: 40, monitorSev: 18 },
+    oodaHints: ['Persistent multi-sensor bias detected vs physics twin',
+                'AI discriminating sensor drift from real engine fault',
+                'Severity: data-quality degradation index computed',
+                'Predicting decision-confidence loss from sensor failure',
+                'Sensor anomaly: deciding with reduced telemetry fidelity',
+                'Sensor health monitoring — redundant channel cross-check']
+  },
+  'intake_restriction': {
+    name: 'Air-Intake Restriction',
+    label: '🌪️ Air-Intake Restriction',
+    baseFault: 'cooling_airflow_blockage',
+    component: 'Air Intake Manifold & Air Filter',
+    camKey: 'cht',
+    desc: 'Restricted manifold induction airflow reducing volumetric efficiency.',
+    sevThresholds: { criticalHealth: 57, abortHealth: 71, monitorHealth: 84,
+                     criticalSev: 60, abortSev: 38, monitorSev: 17,
+                     criticalRpmDev: -12, abortRpmDev: -7 },
+    oodaHints: ['RPM and manifold pressure drop below induction baseline',
+                'AI analyzing air/fuel ratio shift from intake blockage',
+                'Severity: volumetric efficiency loss index computed',
+                'Predicting power loss trajectory and altitude impact',
+                'Induction fault: evaluating mission altitude feasibility',
+                'MAP and RPM monitoring — induction system health loop']
+  }
+};
+
+function getFaultComponentDetails(faultKeyOrName) {
+  const scenario = SIM_SCENARIOS[faultKeyOrName];
+  if (scenario) {
+    return { component: scenario.component, key: scenario.camKey };
+  }
   const map = {
     'spark_plug_fouling': { component: 'Cylinder Spark Plugs (Cyl 1-4)', key: 'cht' },
     'exhaust_valve_leak': { component: 'Exhaust Valves & Exhaust Manifold', key: 'egt' },
@@ -1448,12 +1721,7 @@ function getFaultComponentDetails(faultName) {
     'fuel_pump_degradation': { component: 'Mechanical Fuel Pump & Supply Lines', key: 'fuel' },
     'healthy': { component: 'All Subsystems Operating Nominally', key: 'rpm' }
   };
-  return map[faultName] || { component: 'Engine Subsystem', key: 'rpm' };
-}
-
-function formatFaultLabel(name) {
-  if (name === 'healthy') return '✅ Normal (Healthy Baseline)';
-  return '⚠️ ' + name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return map[faultKeyOrName] || { component: 'Engine Subsystem', key: 'rpm' };
 }
 
 async function loadSyntheticDataset() {
@@ -1503,7 +1771,7 @@ async function loadSyntheticDataset() {
     });
 
     if (statusEl) {
-      statusEl.textContent = `${parsed.length.toLocaleString()} rows • ${Object.keys(SYNTHETIC_UNITS).length} runs`;
+      statusEl.textContent = `12 Conditions Available • ${Object.keys(SYNTHETIC_UNITS).length} runs`;
       statusEl.style.color = '#10B981';
     }
 
@@ -1522,18 +1790,13 @@ function populateScenarioDropdown() {
   if (!sel) return;
   sel.innerHTML = '';
 
-  // Sort scenarios with "healthy" first
-  const sorted = Object.keys(SYNTHETIC_SCENARIOS).sort((a, b) => {
-    if (a === 'healthy') return -1;
-    if (b === 'healthy') return 1;
-    return a.localeCompare(b);
-  });
-
-  sorted.forEach(name => {
-    const count = SYNTHETIC_SCENARIOS[name].length;
+  Object.entries(SIM_SCENARIOS).forEach(([key, cfg]) => {
+    const baseFault = cfg.baseFault;
+    const uids = SYNTHETIC_SCENARIOS[baseFault] || [];
+    const count = uids.length;
     const opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = `${formatFaultLabel(name)} (${count} ${count === 1 ? 'trajectory' : 'trajectories'})`;
+    opt.value = key;
+    opt.textContent = `${cfg.label} (${count} ${count === 1 ? 'run' : 'runs'})`;
     sel.appendChild(opt);
   });
 
@@ -1547,12 +1810,13 @@ function populateScenarioDropdown() {
   });
 }
 
-function updateTrajectoryDropdown(scenario) {
+function updateTrajectoryDropdown(scenarioKey) {
   const trajSel = document.getElementById('simTrajectorySelect');
   if (!trajSel) return;
   trajSel.innerHTML = '<option value="random">🎲 Random Valid Trajectory (Auto)</option>';
 
-  const uids = SYNTHETIC_SCENARIOS[scenario] || [];
+  const cfg = SIM_SCENARIOS[scenarioKey] || SIM_SCENARIOS['healthy'];
+  const uids = SYNTHETIC_SCENARIOS[cfg.baseFault] || [];
   uids.forEach(uid => {
     const rows = SYNTHETIC_UNITS[uid] || [];
     const opt = document.createElement('option');
@@ -1562,23 +1826,61 @@ function updateTrajectoryDropdown(scenario) {
   });
 }
 
-function updateScenarioInfo(scenario) {
+function updateScenarioInfo(scenarioKey) {
   const info = document.getElementById('scenarioInfo');
   if (!info) return;
-  const uids = SYNTHETIC_SCENARIOS[scenario] || [];
-  if (uids.length === 0) {
-    info.textContent = 'No trajectories available for this condition.';
-    return;
-  }
-  const sampleUid = uids[0];
-  const sampleLen = SYNTHETIC_UNITS[sampleUid].length;
-  const compInfo = getFaultComponentDetails(scenario);
+  const cfg = SIM_SCENARIOS[scenarioKey] || SIM_SCENARIOS['healthy'];
+  const uids = SYNTHETIC_SCENARIOS[cfg.baseFault] || [];
+  const sampleLen = uids.length ? SYNTHETIC_UNITS[uids[0]].length : 0;
 
   info.innerHTML = `
-    <strong>${uids.length}</strong> matching trajectories detected in synthetic dataset &bull;
-    Sample duration: <strong>${sampleLen} cycles</strong> &bull;
-    Target Component: <span style="color:#00D2FF;font-weight:600;">${compInfo.component}</span>
+    <strong>${cfg.name}</strong>: ${cfg.desc}<br>
+    Target Subsystem: <span style="color:#00D2FF;font-weight:600;">${cfg.component}</span> &bull;
+    <strong>${uids.length}</strong> matching synthetic trajectories (${sampleLen} cycles average)
   `;
+}
+
+function updateOodaPipelineUI(stepIndex, severityLevel = 'normal', scenarioKey = 'healthy', overrideHints = null) {
+  const stepIds   = ['oodaDetect', 'oodaAnalyze', 'oodaSeverity', 'oodaRisk', 'oodaDecide', 'oodaMonitor'];
+  const stepTexts = ['Detect', 'Analyze', 'Severity', 'Predict Risk', 'Decide', 'Monitor Loop'];
+  const scenarioCfg = SIM_SCENARIOS[scenarioKey] || SIM_SCENARIOS['healthy'];
+  const hints = overrideHints || scenarioCfg.oodaHints || stepTexts.map(t => t);
+
+  stepIds.forEach((id, idx) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('active', 'active-warn', 'active-danger', 'completed');
+
+    if (idx < stepIndex) {
+      // Steps before current = completed (dim highlight)
+      el.classList.add('completed');
+    } else if (idx === stepIndex) {
+      // Current active step
+      if (severityLevel === 'critical') el.classList.add('active-danger');
+      else if (severityLevel === 'warn') el.classList.add('active-warn');
+      else el.classList.add('active');
+    }
+
+    // Update tooltip / title with scenario-specific hint for this step
+    const hint = hints[idx] || stepTexts[idx];
+    el.title = hint;
+
+    // Update the text label if a <span class="ooda-txt"> exists
+    const txtSpan = el.querySelector('.ooda-txt');
+    if (txtSpan) {
+      // Keep the original short label; append active step hint as subtitle when active
+      txtSpan.textContent = stepTexts[idx];
+      // Add a dynamic sub-hint below the step label when this step is active
+      const existingHintEl = el.querySelector('.ooda-hint');
+      if (existingHintEl) existingHintEl.remove();
+      if (idx === stepIndex && hint !== stepTexts[idx]) {
+        const hintEl = document.createElement('span');
+        hintEl.className = 'ooda-hint';
+        hintEl.textContent = hint;
+        el.appendChild(hintEl);
+      }
+    }
+  });
 }
 
 function addTimelineNode(phase, cycle, color = '#4fc3e8', faultInfo = null, telemetrySummary = null) {
@@ -1680,9 +1982,9 @@ function stopLabSimulation() {
 async function runLabSimulation() {
   const sel = document.getElementById('simScenarioSelect');
   const trajSel = document.getElementById('simTrajectorySelect');
-  const scenario = sel ? sel.value : 'healthy';
+  const scenarioKey = sel ? sel.value : 'healthy';
   const selectedUid = trajSel ? trajSel.value : 'random';
-  startLiveMission(scenario, selectedUid);
+  startLiveMission(scenarioKey, selectedUid);
 }
 
 async function simulateNewMission() {
@@ -1690,17 +1992,15 @@ async function simulateNewMission() {
   startLiveMission(faultName || 'healthy', 'random');
 }
 
-function startLiveMission(scenario, specificUid = 'random') {
+function startLiveMission(scenarioKey, specificUid = 'random') {
   if (!ALL_SYNTHETIC_DATA.length) {
     alert("Dataset is still loading. Please try again in a moment.");
     return;
   }
 
-  const uids = SYNTHETIC_SCENARIOS[scenario];
-  if (!uids || uids.length === 0) {
-    alert(`No synthetic trajectories found for scenario: ${scenario}`);
-    return;
-  }
+  const cfg = SIM_SCENARIOS[scenarioKey] || SIM_SCENARIOS['healthy'];
+  const baseFault = cfg.baseFault;
+  const uids = SYNTHETIC_SCENARIOS[baseFault] || SYNTHETIC_SCENARIOS['healthy'] || [1];
 
   let selectedUid;
   if (specificUid && specificUid !== 'random') {
@@ -1721,6 +2021,7 @@ function startLiveMission(scenario, specificUid = 'random') {
   const timelineDiv = document.getElementById('missionTimeline');
   const phaseSpan = document.getElementById('currentMissionPhase');
   const phaseBadge = document.getElementById('simPhaseBadge');
+  const decBadge = document.getElementById('simDecisionBadge');
 
   if (liveMissionActive) {
     clearInterval(liveMissionTimer);
@@ -1728,11 +2029,12 @@ function startLiveMission(scenario, specificUid = 'random') {
 
   TELEMETRY_DATA = [];
   liveCycleCount = 0;
-  liveTargetFault = scenario;
+  liveTargetFault = scenarioKey;
   liveMissionActive = true;
   isPlaying = true;
   lastPhaseLabel = '';
   hasLoggedFaultTimeline = false;
+  currentOodaStage = 0;
 
   // Clear charts
   if (CHARTS.simTemp) {
@@ -1754,19 +2056,22 @@ function startLiveMission(scenario, specificUid = 'random') {
     phaseBadge.style.color = '#00D2FF';
     phaseBadge.style.borderColor = 'rgba(0, 210, 255, 0.4)';
   }
+  if (decBadge) {
+    decBadge.textContent = 'CONTINUE';
+    decBadge.className = 'sim-decision-badge badge-continue';
+  }
 
   if (btn) btn.disabled = true;
   if (btnLab) btnLab.disabled = true;
   if (stopBtn) stopBtn.style.display = 'inline-flex';
 
-  const missionTitle = formatFaultLabel(scenario) + ` &bull; Unit #${selectedUid} (${ACTIVE_UNIT_DATA.length} cycles)`;
+  const missionTitle = `${cfg.name} &bull; Unit #${selectedUid} (${ACTIVE_UNIT_DATA.length} cycles)`;
   if (status) status.innerHTML = `Replaying: ${missionTitle}`;
   if (summary) summary.innerHTML = `Live Mission Streaming &bull; ${missionTitle}`;
   if (playBtn) playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
 
   setConnectionStatus(true);
 
-  // Speed selection
   const speedVal = parseInt(document.getElementById('simSpeedSelect')?.value || document.getElementById('speedSelect')?.value || '4', 10);
   const intervalMs = Math.max(50, 1000 / speedVal);
 
@@ -1823,6 +2128,11 @@ async function liveMissionTick() {
       const conf = last.fault_confidence ?? 0;
       const compInfo = getFaultComponentDetails(faultName);
 
+      const decisionObj = evaluateMissionDecision(
+        health, (rul * 0.3), last.predicted_fault_class,
+        (last.egt_1_c || 600), (last.vibration_rms_g || 0.08), last.severity_pct || 0
+      );
+
       document.getElementById('summaryHealthVal').textContent = health.toFixed(1) + '%';
       document.getElementById('summaryFaultVal').textContent =
         faultName !== 'healthy'
@@ -1833,25 +2143,15 @@ async function liveMissionTick() {
       document.getElementById('summaryRulHrsVal').textContent = `${(rul * 0.3).toFixed(1)} hrs estimated flight`;
       document.getElementById('summaryReliabilityVal').textContent = health.toFixed(1) + '%';
 
-      // Success probability: weighted from health, RUL, confidence
       const successProb = Math.min(100, health * 0.6 + (rul / 125) * 40);
       document.getElementById('summarySuccessVal').textContent = successProb.toFixed(1) + '%';
 
-      let rec, recColor, recDesc;
-      if (health >= 85 && faultName === 'healthy') {
-        rec = 'GO'; recColor = '#10B981'; recDesc = 'Propulsion fully airworthy for scheduled mission';
-      } else if (health >= 70) {
-        rec = 'CAUTION'; recColor = '#F59E0B'; recDesc = 'Minor component wear detected; monitor closely';
-      } else if (health >= 50) {
-        rec = 'INSPECTION REQUIRED'; recColor = '#EF4444'; recDesc = 'Ground maintenance inspection required before next sortie';
-      } else {
-        rec = 'DO NOT PROCEED'; recColor = '#EF4444'; recDesc = 'Critical degradation threshold exceeded';
-      }
-
       const recEl = document.getElementById('summaryRecVal');
-      recEl.textContent = rec;
-      recEl.style.color = recColor;
-      document.getElementById('summaryRecDesc').textContent = recDesc;
+      recEl.textContent = decisionObj.recommendation;
+      recEl.style.color = decisionObj.recommendation === 'CONTINUE' ? '#10B981' :
+                          decisionObj.recommendation === 'CONTINUE + MONITOR' ? '#F59E0B' :
+                          decisionObj.recommendation === 'ABORT/RETURN' ? '#FB923C' : '#EF4444';
+      document.getElementById('summaryRecDesc').textContent = decisionObj.description;
     }
 
     const btn = document.getElementById('runBtn');
@@ -1868,6 +2168,10 @@ async function liveMissionTick() {
   const baseRow = ACTIVE_UNIT_DATA[liveCycleCount];
   const totalCycles = ACTIVE_UNIT_DATA.length;
   liveCycleCount++;
+
+  // Step the OODA Closed-Loop Intelligence Ribbon sequentially through all 6 stages
+  // Stage 0: Detect | 1: Analyze | 2: Severity | 3: Risk | 4: Decide | 5: Monitor Loop
+  currentOodaStage = (currentOodaStage + 1) % 6;
 
   // Determine mission phase from actual synthetic telemetry
   const phase = getMissionPhase(
@@ -1909,7 +2213,7 @@ async function liveMissionTick() {
     lastPhaseLabel = phase;
   }
 
-  // Apply controlled stochastic variation (jitter) so repeated runs differ
+  // Controlled stochastic micro-variation
   const jitter = (val, maxPct = 0.008) => {
     if (val === 0 || val === undefined) return val;
     return val * (1 + (Math.random() - 0.5) * maxPct * 2);
@@ -1934,7 +2238,20 @@ async function liveMissionTick() {
     egt_4_c:              jitter(baseRow.egt_4_c, 0.01)
   };
 
-  // Stream reading to AI Backend
+  // Stage 1: Detect (Residual computation)
+  const avgCht = (reading.cht_1_c + reading.cht_2_c + reading.cht_3_c + reading.cht_4_c) / 4;
+  const avgChtTwin = (baseRow.cht_1_twin + baseRow.cht_2_twin + baseRow.cht_3_twin + baseRow.cht_4_twin) / 4;
+  const avgEgt = (reading.egt_1_c + reading.egt_2_c + reading.egt_3_c + reading.egt_4_c) / 4;
+  const avgEgtTwin = (baseRow.egt_1_twin + baseRow.egt_2_twin + baseRow.egt_3_twin + baseRow.egt_4_twin) / 4;
+
+  const rpmDev = ((reading.rpm - baseRow.rpm_twin) / baseRow.rpm_twin * 100);
+  const chtDev = ((avgCht - avgChtTwin) / avgChtTwin * 100);
+  const egtDev = ((avgEgt - avgEgtTwin) / avgEgtTwin * 100);
+  const oilPDev = ((reading.oil_pressure_kpa - baseRow.oil_pressure_twin) / baseRow.oil_pressure_twin * 100);
+  const fuelDev = ((reading.fuel_flow_lph - baseRow.fuel_flow_twin) / baseRow.fuel_flow_twin * 100);
+  const vibDev = (reading.vibration_rms_g - 0.08);
+
+  // Stage 2: Analyze (Stream to AI Model)
   try {
     const res = await fetch('/api/predict', {
       method: 'POST',
@@ -1945,17 +2262,49 @@ async function liveMissionTick() {
     if (!res.ok) throw new Error(await res.text());
     const aiResult = await res.json();
 
-    const avgCht = (reading.cht_1_c + reading.cht_2_c + reading.cht_3_c + reading.cht_4_c) / 4;
-    const avgChtTwin = (baseRow.cht_1_twin + baseRow.cht_2_twin + baseRow.cht_3_twin + baseRow.cht_4_twin) / 4;
-    const avgEgt = (reading.egt_1_c + reading.egt_2_c + reading.egt_3_c + reading.egt_4_c) / 4;
-    const avgEgtTwin = (baseRow.egt_1_twin + baseRow.egt_2_twin + baseRow.egt_3_twin + baseRow.egt_4_twin) / 4;
+    const faultName = aiResult.predicted_fault_name || 'healthy';
+    const compInfo = getFaultComponentDetails(faultName);
+    const confPct = Math.round((aiResult.fault_confidence || 0) * 100);
+    const healthVal = aiResult.mission_reliability_pct ?? 100;
+    const rulVal = aiResult.predicted_RUL ?? 125;
+    const rulHrs = rulVal * 0.3;
+
+    // Stage 3: Assess Severity
+    const baseSev = baseRow.fault_severity ? baseRow.fault_severity * 100 : 0;
+    const anomalySev = Math.max(
+      Math.abs(chtDev) / 25 * 100,
+      Math.abs(egtDev) / 20 * 100,
+      Math.abs(oilPDev) / 30 * 100,
+      Math.max(0, vibDev) / 0.25 * 100,
+      baseSev
+    );
+    const severityPct = Math.min(100, Math.max(0, Math.round(faultName === 'healthy' && confPct > 70 ? 0 : anomalySev)));
+
+    // Stage 4: Predict Future Risk
+    const missionRiskPct = Math.min(100, Math.max(0, Math.round((100 - healthVal) * 0.7 + severityPct * 0.3)));
+    const successVal = Math.max(0, Math.min(100, healthVal * 0.6 + (rulVal / 125) * 40));
+
+    // Stage 5: Decide (Closed-loop Tactical Decision — SCENARIO-AWARE, never hardcoded)
+    const decisionObj = evaluateMissionDecision(
+      healthVal, rulHrs, aiResult.predicted_fault_class,
+      avgEgt, reading.vibration_rms_g, severityPct,
+      liveTargetFault,
+      { oilPDev, fuelDev, rpmDev }
+    );
+
+    // Stage 6: Monitor Loop — advance OODA UI through all 6 sequential stages with severity colour
+    const sevLevel = decisionObj.recommendation === 'CRITICAL → ABORT' ? 'critical' :
+                     decisionObj.recommendation === 'ABORT/RETURN' || decisionObj.recommendation === 'CONTINUE + MONITOR' ? 'warn' : 'normal';
+    updateOodaPipelineUI(currentOodaStage, sevLevel, liveTargetFault);
 
     const fullCycleData = {
       cycle: liveCycleCount,
       phase: phase,
+      severity_pct: severityPct,
+      mission_risk_pct: missionRiskPct,
+      tactical_decision: decisionObj.recommendation,
       ...reading,
       ...aiResult,
-      // Twin physics baselines
       cht_1_twin: baseRow.cht_1_twin, cht_2_twin: baseRow.cht_2_twin,
       cht_3_twin: baseRow.cht_3_twin, cht_4_twin: baseRow.cht_4_twin,
       egt_1_twin: baseRow.egt_1_twin, egt_2_twin: baseRow.egt_2_twin,
@@ -1968,14 +2317,17 @@ async function liveMissionTick() {
 
     TELEMETRY_DATA.push(fullCycleData);
 
-    // Update Live UI Tiles
-    const rpmDev = ((reading.rpm - baseRow.rpm_twin) / baseRow.rpm_twin * 100).toFixed(1);
-    const chtDev = ((avgCht - avgChtTwin) / avgChtTwin * 100).toFixed(1);
-    const egtDev = ((avgEgt - avgEgtTwin) / avgEgtTwin * 100).toFixed(1);
-    const oilPDev = ((reading.oil_pressure_kpa - baseRow.oil_pressure_twin) / baseRow.oil_pressure_twin * 100).toFixed(1);
-    const fuelDev = ((reading.fuel_flow_lph - baseRow.fuel_flow_twin) / baseRow.fuel_flow_twin * 100).toFixed(1);
-    const vibDev = (reading.vibration_rms_g - 0.08).toFixed(2);
+    // Update Decision Badge in header of Live Telemetry
+    const decBadge = document.getElementById('simDecisionBadge');
+    if (decBadge) {
+      decBadge.textContent = decisionObj.recommendation;
+      decBadge.className = 'sim-decision-badge ' +
+        (decisionObj.recommendation === 'CONTINUE' ? 'badge-continue' :
+         decisionObj.recommendation === 'CONTINUE + MONITOR' ? 'badge-monitor' :
+         decisionObj.recommendation === 'ABORT/RETURN' ? 'badge-abort' : 'badge-critical');
+    }
 
+    // Update Live Metric Cells
     const setValAndDev = (valId, devId, valText, devText, isWarn, isAlert) => {
       const vEl = document.getElementById(valId);
       const dEl = document.getElementById(devId);
@@ -1986,36 +2338,42 @@ async function liveMissionTick() {
       }
     };
 
-    setValAndDev('simRpmVal', 'simRpmDev', Math.round(reading.rpm).toLocaleString(), `Δ ${rpmDev >= 0 ? '+' : ''}${rpmDev}%`, Math.abs(rpmDev) > 5, Math.abs(rpmDev) > 10);
-    setValAndDev('simChtVal', 'simChtDev', `${Math.round(avgCht)}°C`, `Δ ${chtDev >= 0 ? '+' : ''}${chtDev}%`, Math.abs(chtDev) > 8, Math.abs(chtDev) > 15);
-    setValAndDev('simEgtVal', 'simEgtDev', `${Math.round(avgEgt)}°C`, `Δ ${egtDev >= 0 ? '+' : ''}${egtDev}%`, Math.abs(egtDev) > 8, Math.abs(egtDev) > 15);
-    setValAndDev('simOilPVal', 'simOilPDev', `${(reading.oil_pressure_kpa / 27.5).toFixed(1)} bar`, `Δ ${oilPDev >= 0 ? '+' : ''}${oilPDev}%`, Math.abs(oilPDev) > 10, Math.abs(oilPDev) > 20);
-    setValAndDev('simFuelVal', 'simFuelDev', `${(reading.fuel_flow_lph * 0.75).toFixed(1)} kg/h`, `Δ ${fuelDev >= 0 ? '+' : ''}${fuelDev}%`, Math.abs(fuelDev) > 10, Math.abs(fuelDev) > 20);
-    setValAndDev('simVibVal', 'simVibDev', `${reading.vibration_rms_g.toFixed(2)} g`, reading.vibration_rms_g > 0.3 ? `+${vibDev} g (HIGH)` : 'Nominal', reading.vibration_rms_g > 0.22, reading.vibration_rms_g > 0.35);
+    setValAndDev('simRpmVal', 'simRpmDev', Math.round(reading.rpm).toLocaleString(), `Δ ${rpmDev >= 0 ? '+' : ''}${rpmDev.toFixed(1)}%`, Math.abs(rpmDev) > 5, Math.abs(rpmDev) > 10);
+    setValAndDev('simChtVal', 'simChtDev', `${Math.round(avgCht)}°C`, `Δ ${chtDev >= 0 ? '+' : ''}${chtDev.toFixed(1)}%`, Math.abs(chtDev) > 8, Math.abs(chtDev) > 15);
+    setValAndDev('simEgtVal', 'simEgtDev', `${Math.round(avgEgt)}°C`, `Δ ${egtDev >= 0 ? '+' : ''}${egtDev.toFixed(1)}%`, Math.abs(egtDev) > 8, Math.abs(egtDev) > 15);
+    setValAndDev('simOilPVal', 'simOilPDev', `${(reading.oil_pressure_kpa / 27.5).toFixed(1)} bar`, `Δ ${oilPDev >= 0 ? '+' : ''}${oilPDev.toFixed(1)}%`, Math.abs(oilPDev) > 10, Math.abs(oilPDev) > 20);
+    setValAndDev('simFuelVal', 'simFuelDev', `${(reading.fuel_flow_lph * 0.75).toFixed(1)} kg/h`, `Δ ${fuelDev >= 0 ? '+' : ''}${fuelDev.toFixed(1)}%`, Math.abs(fuelDev) > 10, Math.abs(fuelDev) > 20);
+    setValAndDev('simVibVal', 'simVibDev', `${reading.vibration_rms_g.toFixed(2)} g`, reading.vibration_rms_g > 0.3 ? `+${vibDev.toFixed(2)}g (HIGH)` : 'Nominal', reading.vibration_rms_g > 0.22, reading.vibration_rms_g > 0.35);
 
     // AI Diagnostics Strip
-    const faultName = aiResult.predicted_fault_name || 'healthy';
-    const compInfo = getFaultComponentDetails(faultName);
-    const confPct = Math.round((aiResult.fault_confidence || 0) * 100);
-    const healthVal = aiResult.mission_reliability_pct ?? 100;
-    const rulVal = aiResult.predicted_RUL ?? 125;
-    const successVal = Math.min(100, healthVal * 0.6 + (rulVal / 125) * 40);
-
     const elHealth = document.getElementById('simAiHealthVal');
+    const elSev = document.getElementById('simAiSevVal');
     const elFault = document.getElementById('simAiFaultVal');
     const elComp = document.getElementById('simAiCompVal');
     const elConf = document.getElementById('simAiConfVal');
     const elRul = document.getElementById('simAiRulVal');
-    const elRel = document.getElementById('simAiRelVal');
-    const elSucc = document.getElementById('simAiSuccessVal');
+    const elRisk = document.getElementById('simAiRiskVal');
+    const elDec = document.getElementById('simAiDecVal');
 
     if (elHealth) elHealth.textContent = `${healthVal.toFixed(1)}%`;
+    if (elSev) {
+      elSev.textContent = `${severityPct}%`;
+      elSev.className = severityPct > 60 ? 'val-red' : severityPct > 25 ? 'val-orange' : 'val-green';
+    }
     if (elFault) elFault.textContent = faultName === 'healthy' ? 'NOMINAL' : faultName.replace(/_/g, ' ').toUpperCase();
     if (elComp) elComp.textContent = compInfo.component;
     if (elConf) elConf.textContent = `${confPct}%`;
-    if (elRul) elRul.textContent = `${rulVal.toFixed(1)} cyc (${(rulVal * 0.3).toFixed(1)}h)`;
-    if (elRel) elRel.textContent = `${healthVal.toFixed(1)}%`;
-    if (elSucc) elSucc.textContent = `${successVal.toFixed(1)}%`;
+    if (elRul) elRul.textContent = `${rulVal.toFixed(1)} cyc (${rulHrs.toFixed(1)}h)`;
+    if (elRisk) {
+      elRisk.textContent = `${missionRiskPct}%`;
+      elRisk.className = missionRiskPct > 60 ? 'val-red' : missionRiskPct > 30 ? 'val-orange' : 'val-purple';
+    }
+    if (elDec) {
+      elDec.textContent = decisionObj.recommendation;
+      elDec.style.color = decisionObj.recommendation === 'CONTINUE' ? '#10B981' :
+                          decisionObj.recommendation === 'CONTINUE + MONITOR' ? '#F59E0B' :
+                          decisionObj.recommendation === 'ABORT/RETURN' ? '#FB923C' : '#EF4444';
+    }
 
     // Connect detected fault to 3D engine: highlight affected component
     if (faultName !== 'healthy' && confPct >= 70 && !hasLoggedFaultTimeline) {
