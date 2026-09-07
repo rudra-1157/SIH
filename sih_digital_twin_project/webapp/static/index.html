@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEROTWIN-AI — Real-Time Digital Twin for Aero Piston Engines in MALE UAVs</title>
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<!-- Font Awesome Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Three.js + OrbitControls -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<!-- jsPDF for Professional Report Exports -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div id="aerotwin-app" class="app-shell">
+
+  <!-- ================= TOP HEADER BANNER (Consistent across all pages) ================= -->
+  <header class="main-header">
+    <div class="header-left">
+      <div class="brand-badge" id="brandHomeLink" title="Return to Twin Engine (Home)">
+        <div class="brand-icon"><i class="fa-solid fa-cube"></i></div>
+        <div class="brand-text">
+          <span class="brand-title">AeroTwin-AI</span>
+          <span class="brand-subtitle">Engine Health Monitoring &amp; Prediction</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <div class="banner-title-box">
+        <div class="banner-accent-left"></div>
+        <div class="banner-content">
+          <h1>AEROTWIN-AI PROTOTYPE</h1>
+          <p>AI-Enabled Real-Time Digital Twin for Aero Piston Engines used in MALE UAVs</p>
+        </div>
+        <div class="banner-accent-right"></div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button class="header-report-btn" id="headerGenReportBtn" title="Generate Comprehensive Engineering Report">
+        <i class="fa-solid fa-file-waveform"></i> Generate Report
+      </button>
+
+      <div class="sih-badge">
+        <div class="sih-icon-wrap">
+          <i class="fa-solid fa-microchip sih-glow"></i>
+        </div>
+        <div class="sih-text">
+          <span class="sih-title">SMART INDIA</span>
+          <span class="sih-sub">HACKATHON 2026</span>
+        </div>
+      </div>
+
+      <div class="conn-pill" id="connStatus">
+        <span class="conn-dot conn-ok"></span> API Connected
+      </div>
+
+      <div class="clock-box" id="clock">10:24:36 AM UTC</div>
+
+      <button class="login-toggle-btn" id="openLoginBtn" title="Toggle Operator Login">
+        <i class="fa-regular fa-circle-user"></i> Login
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= APP BODY (Fixed Vertical Sidebar + Multi-Page Content) ================= -->
+  <div class="app-body-container">
+
+    <!-- ================= FIXED VERTICAL LEFT SIDEBAR ================= -->
+    <aside class="app-vertical-sidebar">
+      <div class="sidebar-section-title">NAVIGATION</div>
+      <nav class="sidebar-nav">
+        <!-- 1. Twin Engine (Homepage) -->
+        <button class="sidebar-nav-item active" data-page="twin-engine" title="Twin Engine (Home)">
+          <div class="nav-icon-wrap"><i class="fa-solid fa-cube"></i></div>
+          <span class="nav-label">Twin Engine</span>
+          <span class="nav-badge-pill home-pill">HOME</span>
+        </button>
+
+        <!-- 2. Simulator (Dedicated Simulator Page) -->
+        <button class="sidebar-nav-item" data-page="simulator" title="Independent Mission & Telemetry Simulator">
+          <div class="nav-icon-wrap"><i class="fa-solid fa-microchip"></i></div>
+          <span class="nav-label">Simulator</span>
+          <span class="nav-badge-pill sim-pill">LAB</span>
+        </button>
+
+        <!-- 3. Health & RUL -->
+        <button class="sidebar-nav-item" data-page="health-rul" title="Engine Health & RUL Analytics">
+          <div class="nav-icon-wrap"><i class="fa-solid fa-heart-pulse"></i></div>
+          <span class="nav-label">Health &amp; RUL</span>
+        </button>
+
+        <!-- 4. Fault Detection -->
+        <button class="sidebar-nav-item" data-page="fault-detection" title="AI Fault Detection & Diagnostics">
+          <div class="nav-icon-wrap"><i class="fa-solid fa-shield-halved"></i></div>
+          <span class="nav-label">Fault Detection</span>
+        </button>
+
+        <!-- 5. Mission Analysis -->
+        <button class="sidebar-nav-item" data-page="mission-analysis" title="Flight Profile & Feasibility Assessment">
+          <div class="nav-icon-wrap"><i class="fa-solid fa-plane-up"></i></div>
+          <span class="nav-label">Mission Analysis</span>
+        </button>
+
+        <!-- 6. Alerts -->
+        <button class="sidebar-nav-item" data-page="alerts" title="Caution & Warning Annunciators">
+          <div class="nav-icon-wrap"><i class="fa-solid fa-bell"></i></div>
+          <span class="nav-label">Alerts</span>
+          <span class="nav-counter-badge" id="sidebarAlertCount">2</span>
+        </button>
+
+        <!-- 7. Reports -->
+        <button class="sidebar-nav-item" data-page="reports" title="Engineering Reports & History Exports">
+          <div class="nav-icon-wrap"><i class="fa-solid fa-file-waveform"></i></div>
+          <span class="nav-label">Reports</span>
+        </button>
+
+        <!-- 8. Settings -->
+        <button class="sidebar-nav-item" data-page="settings" title="Ground Station & Model Settings">
+          <div class="nav-icon-wrap"><i class="fa-solid fa-gear"></i></div>
+          <span class="nav-label">Settings</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer Status -->
+      <div class="sidebar-footer">
+        <div class="aircraft-chip">
+          <div class="chip-dot"></div>
+          <div class="chip-info">
+            <span class="chip-uav">UAV-07 &bull; ROTAX 914</span>
+            <span class="chip-status" id="sidebarStatusText">STATUS: NOMINAL</span>
+          </div>
+        </div>
+        <button class="return-home-btn" id="returnHomeBtn">
+          <i class="fa-solid fa-arrow-left"></i> Return to Twin Engine
+        </button>
+      </div>
+    </aside>
+
+    <!-- ================= MAIN MULTI-PAGE CONTENT AREA ================= -->
+    <main class="app-main-content">
+
+      <!-- ==========================================================================
+           PAGE 1: TWIN ENGINE (HOMEPAGE — PROMINENT 3D DIGITAL TWIN)
+           ========================================================================== -->
+      <div class="page-view active-page" id="page-twin-engine">
+        
+        <!-- Live Mission Playback & Scrub Strip -->
+        <div class="telemetry-bar">
+          <div class="tele-left">
+            <div class="live-pill"><span class="pulse-dot"></span> LIVE TWIN</div>
+            <div class="mission-sim-box">
+              <label for="faultSelect"><i class="fa-solid fa-sliders"></i> Fault Injection:</label>
+              <select id="faultSelect">
+                <option value="">Normal (Healthy)</option>
+                <option value="cooling_airflow_blockage">Overheating</option>
+                <option value="bearing_wear">Component Wear</option>
+                <option value="fuel_pump_degradation">Fuel System Failure</option>
+                <option value="exhaust_valve_leak">High Vibration</option>
+                <option value="spark_plug_fouling">Sensor Failure</option>
+              </select>
+              <button id="runBtn" class="action-btn"><i class="fa-solid fa-play"></i> Start Mission</button>
+            </div>
+          </div>
+
+          <div class="tele-playback">
+            <button id="playBtn" class="playback-btn" title="Play/Pause"><i class="fa-solid fa-play"></i></button>
+            <div class="scrub-container">
+              <div class="scrub-info">
+                <span id="scrubStart">Mission Start</span>
+                <span id="scrubMid" class="highlight-cycle">Cycle 0</span>
+                <span id="scrubEnd">Live: Cycle 0</span>
+              </div>
+              <input type="range" id="scrub" min="0" max="0" value="0" step="1">
+            </div>
+            <div class="speed-box">
+              <span>Speed:</span>
+              <select id="speedSelect">
+                <option value="4">1x</option>
+                <option value="2">2x</option>
+                <option value="1">4x</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="tele-right">
+            <span id="runStatus" class="run-status-text">Ready &bull; Engine Nominal</span>
+          </div>
+        </div>
+
+        <!-- Hero Twin Engine Visualizer (Prominent Homepage Feature) -->
+        <div class="hero-twin-container">
+          <div class="twin-panel-header">
+            <div class="twin-title-wrap">
+              <span class="twin-badge-pill"><i class="fa-solid fa-cube"></i> PHYSICS-BASED DIGITAL TWIN</span>
+              <h2>4-Cylinder Horizontally Opposed Aero Piston Engine (Rotax 914 F/UL)</h2>
+            </div>
+            <div class="twin-header-actions">
+              <div class="view-switch-btns">
+                <button class="switch-btn active" id="btnView3D"><i class="fa-solid fa-cube"></i> 3D Model</button>
+                <button class="switch-btn" id="btnViewSchematic"><i class="fa-solid fa-diagram-project"></i> Schematic</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3D Three.js WebGL Viewport -->
+          <div class="twin-hero-viewport">
+            <div id="threeEngineContainer" class="three-viewport">
+              <!-- 3D Interactive Floating Callouts -->
+              <div class="callout-overlay">
+                <div class="callout-tag tag-rpm clickable" data-target-comp="rpm" id="callout-rpm" title="Click to inspect Crankshaft & Propeller">
+                  <div class="callout-dot"></div>
+                  <div class="callout-box">
+                    <span class="cb-title"><i class="fa-solid fa-rotate"></i> CRANKSHAFT &amp; PROP</span>
+                    <span class="cb-val" id="callout-rpm-val">5,120 RPM</span>
+                  </div>
+                </div>
+                <div class="callout-tag tag-cht clickable" data-target-comp="cht" id="callout-cht" title="Click to inspect Cylinders & Heads">
+                  <div class="callout-dot"></div>
+                  <div class="callout-box">
+                    <span class="cb-title"><i class="fa-solid fa-fire"></i> CYLINDER HEADS</span>
+                    <span class="cb-val" id="callout-cht-val">CHT: 312 &deg;C</span>
+                  </div>
+                </div>
+                <div class="callout-tag tag-egt clickable" data-target-comp="egt" id="callout-egt" title="Click to inspect Exhaust & Turbo">
+                  <div class="callout-dot"></div>
+                  <div class="callout-box">
+                    <span class="cb-title"><i class="fa-solid fa-smog"></i> EXHAUST MANIFOLD</span>
+                    <span class="cb-val" id="callout-egt-val">EGT: 854 &deg;C</span>
+                  </div>
+                </div>
+                <div class="callout-tag tag-oil clickable" data-target-comp="oil" id="callout-oil" title="Click to inspect Oil Sump & Line">
+                  <div class="callout-dot"></div>
+                  <div class="callout-box">
+                    <span class="cb-title"><i class="fa-solid fa-droplet"></i> OIL SYSTEM</span>
+                    <span class="cb-val" id="callout-oil-val">4.9 bar &bull; 83 &deg;C</span>
+                  </div>
+                </div>
+                <div class="callout-tag tag-fuel clickable" data-target-comp="fuel" id="callout-fuel" title="Click to inspect Fuel Injection">
+                  <div class="callout-dot"></div>
+                  <div class="callout-box">
+                    <span class="cb-title"><i class="fa-solid fa-gas-pump"></i> FUEL INJECTION</span>
+                    <span class="cb-val" id="callout-fuel-val">26.3 kg/h</span>
+                  </div>
+                </div>
+                <div class="callout-tag tag-vib clickable" data-target-comp="vib" id="callout-vib" title="Click to inspect Vibration Sensor">
+                  <div class="callout-dot"></div>
+                  <div class="callout-box">
+                    <span class="cb-title"><i class="fa-solid fa-wave-square"></i> VIBRATION SENSOR</span>
+                    <span class="cb-val" id="callout-vib-val">0.35 g RMS</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3D HUD Controls -->
+              <div class="three-hud-controls">
+                <button class="hud-btn" id="btnResetCamera" title="Reset Camera View"><i class="fa-solid fa-arrows-to-dot"></i> Reset View</button>
+                <button class="hud-btn" id="btnExplodeView" title="Cutaway / Exploded View"><i class="fa-solid fa-arrows-split-up-and-left"></i> Cutaway View</button>
+                <button class="hud-btn" id="btnToggleThermal" title="Toggle Thermal Glow Heatmap"><i class="fa-solid fa-temperature-arrow-up"></i> Thermal Glow</button>
+                <button class="hud-btn" id="btnAutoRotate" title="360 Auto-Rotate"><i class="fa-solid fa-rotate-right"></i> Auto-Rotate</button>
+              </div>
+            </div>
+
+            <!-- 2D Schematic Viewport (Hidden by default) -->
+            <div id="schematicContainer" class="schematic-viewport" style="display:none;">
+              <div class="schematic-svg-wrap">
+                <svg viewBox="0 0 600 320" class="schematic-svg">
+                  <rect x="20" y="20" width="560" height="280" rx="10" fill="#0c1218" stroke="#1d2f3e" stroke-width="2"/>
+                  <!-- Propeller Hub -->
+                  <circle cx="90" cy="160" r="30" fill="#1b2a38" stroke="#4fc3e8" stroke-width="2" class="svg-clickable" onclick="focusComponent('rpm')"/>
+                  <line x1="90" y1="40" x2="90" y2="280" stroke="#4fc3e8" stroke-width="6" stroke-linecap="round"/>
+                  <text x="90" y="165" fill="#ffffff" font-size="11" text-anchor="middle" font-weight="bold">PROP</text>
+                  <!-- Crankcase -->
+                  <rect x="140" y="100" width="220" height="120" rx="6" fill="#141e28" stroke="#2c4155" stroke-width="2"/>
+                  <text x="250" y="165" fill="#8ca0b3" font-size="12" text-anchor="middle" font-weight="bold">CRANKCASE &bull; ROTAX 914</text>
+                  <!-- Cylinders -->
+                  <rect x="170" y="45" width="55" height="50" rx="4" fill="#203345" stroke="#ef4e42" stroke-width="2" class="svg-clickable" onclick="focusComponent('cht')"/>
+                  <text x="197" y="75" fill="#ef4e42" font-size="10" text-anchor="middle" font-weight="bold">CYL 1</text>
+                  <rect x="275" y="45" width="55" height="50" rx="4" fill="#203345" stroke="#4fc3e8" stroke-width="2" class="svg-clickable" onclick="focusComponent('cht')"/>
+                  <text x="302" y="75" fill="#4fc3e8" font-size="10" text-anchor="middle" font-weight="bold">CYL 2</text>
+                  <rect x="170" y="225" width="55" height="50" rx="4" fill="#203345" stroke="#4fc3e8" stroke-width="2" class="svg-clickable" onclick="focusComponent('cht')"/>
+                  <text x="197" y="255" fill="#4fc3e8" font-size="10" text-anchor="middle" font-weight="bold">CYL 3</text>
+                  <rect x="275" y="225" width="55" height="50" rx="4" fill="#203345" stroke="#4fc3e8" stroke-width="2" class="svg-clickable" onclick="focusComponent('cht')"/>
+                  <text x="302" y="255" fill="#4fc3e8" font-size="10" text-anchor="middle" font-weight="bold">CYL 4</text>
+                  <!-- Turbocharger -->
+                  <circle cx="430" cy="160" r="35" fill="#221815" stroke="#f0b23e" stroke-width="2" class="svg-clickable" onclick="focusComponent('egt')"/>
+                  <text x="430" y="165" fill="#f0b23e" font-size="10" text-anchor="middle" font-weight="bold">TURBO</text>
+                  <path d="M 225 70 Q 400 70 430 125" fill="none" stroke="#ef4e42" stroke-width="2" stroke-dasharray="4,4"/>
+                  <path d="M 330 70 Q 410 80 430 125" fill="none" stroke="#ef4e42" stroke-width="2" stroke-dasharray="4,4"/>
+                  <path d="M 465 160 L 540 160" stroke="#f0b23e" stroke-width="4" stroke-linecap="round"/>
+                  <text x="500" y="150" fill="#f0b23e" font-size="9" text-anchor="middle">EXHAUST</text>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Temperature Scale Overlay -->
+            <div class="temp-scale-card">
+              <div class="temp-scale-title">Temperature (&deg;C)</div>
+              <div class="temp-gradient-bar"></div>
+              <div class="temp-scale-labels">
+                <span>100</span><span>300</span><span>500</span><span>700</span><span>900</span>
+              </div>
+            </div>
+
+            <!-- Operating Point HUD Widget -->
+            <div class="operating-point-card">
+              <div class="op-title">Operating Point</div>
+              <div class="op-grid">
+                <div class="op-item">
+                  <span class="op-icon"><i class="fa-solid fa-gauge-high"></i></span>
+                  <span class="op-name">Throttle</span>
+                  <span class="op-val" id="opThrottleVal">72%</span>
+                </div>
+                <div class="op-item">
+                  <span class="op-icon"><i class="fa-solid fa-mountain"></i></span>
+                  <span class="op-name">Altitude</span>
+                  <span class="op-val" id="opAltitudeVal">8500 ft</span>
+                </div>
+                <div class="op-item">
+                  <span class="op-icon"><i class="fa-solid fa-wind"></i></span>
+                  <span class="op-name">Speed</span>
+                  <span class="op-val" id="opSpeedVal">0.35 M</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Instruments Strip (Clickable to focus 3D parts) -->
+          <div class="twin-instruments-strip">
+            <div class="metric-card clickable" data-metric="rpm" title="Click to inspect Crankshaft & Propeller">
+              <span class="card-label"><i class="fa-solid fa-rotate"></i> RPM</span>
+              <div class="card-value val-blue" id="disp-rpm">5120</div>
+              <span class="card-unit">rpm</span>
+            </div>
+            <div class="metric-card clickable" data-metric="cht" title="Click to inspect Cylinder Heads">
+              <span class="card-label"><i class="fa-solid fa-fire"></i> CHT (Avg)</span>
+              <div class="card-value val-orange" id="disp-cht">312</div>
+              <span class="card-unit">&deg;C</span>
+            </div>
+            <div class="metric-card clickable" data-metric="egt" title="Click to inspect Exhaust & Turbo">
+              <span class="card-label"><i class="fa-solid fa-smog"></i> EGT (Avg)</span>
+              <div class="card-value val-red" id="disp-egt">854</div>
+              <span class="card-unit">&deg;C</span>
+            </div>
+            <div class="metric-card clickable" data-metric="oil" title="Click to inspect Oil Sump & Filter">
+              <span class="card-label"><i class="fa-solid fa-droplet"></i> Oil Press</span>
+              <div class="card-value val-purple" id="disp-oilp">4.9</div>
+              <span class="card-unit">bar (135 kPa)</span>
+            </div>
+            <div class="metric-card clickable" data-metric="fuel" title="Click to inspect Fuel Injection">
+              <span class="card-label"><i class="fa-solid fa-gas-pump"></i> Fuel Flow</span>
+              <div class="card-value val-green" id="disp-fuel">26.3</div>
+              <span class="card-unit">kg/h (LPH)</span>
+            </div>
+            <div class="metric-card clickable" data-metric="vib" title="Click to inspect Vibration Transducer">
+              <span class="card-label"><i class="fa-solid fa-wave-square"></i> Vibration</span>
+              <div class="card-value val-cyan" id="disp-vib">0.35</div>
+              <span class="card-unit">g RMS</span>
+            </div>
+          </div>
+
+          <!-- Quick Navigation Cards to other modules -->
+          <div class="twin-quick-nav-row">
+            <div class="quick-nav-card" onclick="navigateToPage('health-rul')">
+              <div class="qnc-header">
+                <i class="fa-solid fa-heart-pulse"></i>
+                <span>Health &amp; RUL</span>
+              </div>
+              <div class="qnc-val"><span id="homeHealthVal">82%</span> <small>Good</small></div>
+              <span class="qnc-link">View Prognostics &rarr;</span>
+            </div>
+
+            <div class="quick-nav-card" onclick="navigateToPage('fault-detection')">
+              <div class="qnc-header">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Diagnostics</span>
+              </div>
+              <div class="qnc-val"><span id="homeFaultVal">Nominal</span></div>
+              <span class="qnc-link">Analyze Anomaly &rarr;</span>
+            </div>
+
+            <div class="quick-nav-card" onclick="navigateToPage('mission-analysis')">
+              <div class="qnc-header">
+                <i class="fa-solid fa-plane-up"></i>
+                <span>Mission Feasibility</span>
+              </div>
+              <div class="qnc-val"><span id="homeFeasVal">72%</span> <small id="homeRecVal">GO</small></div>
+              <span class="qnc-link">View Flight Profile &rarr;</span>
+            </div>
+
+            <div class="quick-nav-card" onclick="navigateToPage('simulator')">
+              <div class="qnc-header">
+                <i class="fa-solid fa-microchip"></i>
+                <span>Simulation Lab</span>
+              </div>
+              <div class="qnc-val"><span>Test Bench</span></div>
+              <span class="qnc-link">Upload &amp; Simulate &rarr;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==========================================================================
+           PAGE 2: SIMULATOR (DEDICATED INDEPENDENT SIMULATION LAB)
+           ========================================================================== -->
+      <div class="page-view" id="page-simulator">
+        <div class="page-header-row">
+          <div>
+            <h2><i class="fa-solid fa-microchip"></i> Mission &amp; Telemetry Simulation Lab</h2>
+            <p class="page-subtitle">Upload datasets, select flight profiles, inject fault test cases and inspect physics twin residuals</p>
+          </div>
+          <div class="page-actions">
+            <button class="action-btn" id="btnRunLabSim"><i class="fa-solid fa-play"></i> Start Mission</button>
+          </div>
+        </div>
+
+        <div class="sim-lab-grid">
+          <!-- Column 1: Dataset Selection & Upload -->
+          <div class="section-card">
+            <div class="section-header">
+              <div class="sec-title"><i class="fa-solid fa-database"></i> 1. Telemetry Dataset Source</div>
+            </div>
+            <div class="sim-card-body">
+              <label class="form-label">Pre-loaded Aero Datasets:
+                <select id="simDatasetSelect" class="form-select">
+                  <option value="synthetic_test">Synthetic MALE UAV Mission Test Set (30k cycles, 100 units)</option>
+                  <option value="cmapss_test">C-MAPSS Turbomachinery Degradation Benchmark (FD001 Test)</option>
+                  <option value="synthetic_train">Synthetic Full Mission Training Corpus (100 units)</option>
+                  <option value="ntsb_accidents">NTSB Reciprocating Engine Accident Data</option>
+                  <option value="custom_upload">Custom Uploaded File (.csv / .json)</option>
+                </select>
+              </label>
+
+              <!-- Drag and drop dataset uploader -->
+              <div class="dataset-upload-zone" id="datasetDropZone">
+                <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                <h4>Upload Custom Telemetry File</h4>
+                <p>Drag &amp; drop <code>.csv</code> or <code>.json</code> sensor logs here, or click to browse</p>
+                <input type="file" id="datasetFileInput" accept=".csv,.json" style="display:none;">
+                <button type="button" class="upload-browse-btn" onclick="document.getElementById('datasetFileInput').click()">Browse Files</button>
+                <div id="uploadFileInfo" class="upload-file-info" style="display:none;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Column 2: Test Case & Failure Mode Config -->
+          <div class="section-card">
+            <div class="section-header">
+              <div class="sec-title"><i class="fa-solid fa-vial"></i> 2. Test Case &amp; Fault Injection</div>
+            </div>
+            <div class="sim-card-body">
+              <!-- Quick Preset Test Cases -->
+              <label class="form-label">Quick Scenario Presets:</label>
+              <div class="preset-cases-grid">
+                <button class="preset-btn active" data-preset="healthy">Normal</button>
+                <button class="preset-btn" data-preset="cooling_airflow_blockage">Overheating</button>
+                <button class="preset-btn" data-preset="bearing_wear">Component Wear</button>
+                <button class="preset-btn" data-preset="fuel_pump_degradation">Fuel System Failure</button>
+                <button class="preset-btn" data-preset="exhaust_valve_leak">High Vibration</button>
+                <button class="preset-btn" data-preset="spark_plug_fouling">Sensor Failure</button>
+              </div>
+
+              <div class="sim-params-row">
+                <label class="form-label">Cycles:
+                  <input type="number" id="simCyclesInput" value="350" min="50" max="800">
+                </label>
+                <label class="form-label">RNG Seed:
+                  <input type="number" id="simSeedInput" value="42">
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulation Results & Visualizer -->
+        <div class="section-card" style="margin-top: 12px;">
+          <div class="section-header">
+            <div class="sec-title"><i class="fa-solid fa-chart-line"></i> 3. Simulation Results &amp; Physics Residuals</div>
+            <div class="sim-meta-right">
+              <span id="simResultSummary" class="sim-summary-text">Simulated: Healthy (350 cycles) &bull; Run #1</span>
+              <button class="action-btn" id="btnTransferToTwin"><i class="fa-solid fa-cube"></i> Load in 3D Twin</button>
+            </div>
+          </div>
+
+          <div class="sim-results-grid">
+            <div class="sim-chart-wrap">
+              <div class="chart-header-compact">CHT &amp; EGT Actual vs Twin Baseline</div>
+              <canvas id="simTempChart"></canvas>
+            </div>
+            <div class="sim-chart-wrap">
+              <div class="chart-header-compact">Oil Pressure &amp; Vibration Residuals</div>
+              <canvas id="simMechanicalChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==========================================================================
+           PAGE 3: HEALTH & RUL ANALYTICS
+           ========================================================================== -->
+      <div class="page-view" id="page-health-rul">
+        <div class="page-header-row">
+          <div>
+            <h2><i class="fa-solid fa-heart-pulse"></i> Propulsion Health &amp; RUL Analytics</h2>
+            <p class="page-subtitle">Prognostic remaining useful life estimation with confidence bounds &amp; component degradation curves</p>
+          </div>
+        </div>
+
+        <div class="health-kpi-summary-strip">
+          <div class="health-hero-card">
+            <span class="hhc-lbl">Engine Health Index</span>
+            <div class="health-gauge-wrap">
+              <canvas id="healthIndexCanvas" width="140" height="80"></canvas>
+              <div class="health-gauge-val">
+                <span id="healthIndexVal">82%</span>
+                <span class="health-grade-text" id="healthGrade">Good</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="health-hero-card">
+            <span class="hhc-lbl">RUL Prognostics</span>
+            <div class="kpi-hero-num val-green">
+              <span id="kpiRulVal">35.6</span> <small>hrs</small>
+            </div>
+            <span class="kpi-subtext">Remaining Useful Life (&plusmn; 6.2 hrs)</span>
+          </div>
+
+          <div class="health-hero-card">
+            <span class="hhc-lbl">Mission Readiness</span>
+            <div class="readiness-chip go-status" id="readinessChip">
+              <i class="fa-solid fa-circle-check" id="readinessIcon"></i>
+              <div>
+                <span class="go-text" id="readinessText">GO</span>
+                <small id="readinessDesc">Engine fit for mission</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="health-analytics-body" style="margin-top:12px;">
+          <div class="analytics-col">
+            <div class="analytics-title">
+              <span>Health Degradation Trend</span>
+              <span class="analytics-sub">Health Index (%)</span>
+            </div>
+            <div class="chart-canvas-wrap" style="height:220px;">
+              <canvas id="healthDegradationChart"></canvas>
+            </div>
+          </div>
+
+          <div class="analytics-col">
+            <div class="analytics-title">
+              <span>RUL Prediction Curve</span>
+              <span class="rul-highlight" id="rulPredictionHighlight">RUL: 35.6 hrs <small>(&plusmn; 6.2 hrs)</small></span>
+            </div>
+            <div class="chart-canvas-wrap" style="height:220px;">
+              <canvas id="rulPredictionChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Component Health Matrix -->
+        <div class="section-card" style="margin-top:12px;">
+          <div class="section-header">
+            <div class="sec-title"><i class="fa-solid fa-layer-group"></i> Component Degradation Assessment</div>
+          </div>
+          <table class="alerts-table">
+            <thead>
+              <tr>
+                <th>Subsystem</th>
+                <th>Monitored Telemetry</th>
+                <th>Wear Index</th>
+                <th>Status</th>
+                <th>Estimated Time To Overhaul</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Cylinder Heads &amp; Barrels</strong></td>
+                <td>CHT 1-4, Thermal Gradient</td>
+                <td><div class="conf-bar-bg" style="width:140px;"><div class="conf-bar-fill" style="width:18%;background:#10B981;"></div></div></td>
+                <td><span class="status-pill status-ack" style="background:#10B98122;color:#10B981;">Nominal</span></td>
+                <td>180.0 hrs</td>
+              </tr>
+              <tr>
+                <td><strong>Exhaust Manifold &amp; Turbo</strong></td>
+                <td>EGT 1-4, Turbine Backpressure</td>
+                <td><div class="conf-bar-bg" style="width:140px;"><div class="conf-bar-fill" style="width:45%;background:#F59E0B;"></div></div></td>
+                <td><span class="status-pill status-active" style="background:#F59E0B22;color:#F59E0B;">Caution</span></td>
+                <td>62.5 hrs</td>
+              </tr>
+              <tr>
+                <td><strong>Crankshaft &amp; Main Bearings</strong></td>
+                <td>Vibration RMS (g), Oil Pressure</td>
+                <td><div class="conf-bar-bg" style="width:140px;"><div class="conf-bar-fill" style="width:28%;background:#10B981;"></div></div></td>
+                <td><span class="status-pill status-ack" style="background:#10B98122;color:#10B981;">Nominal</span></td>
+                <td>145.0 hrs</td>
+              </tr>
+              <tr>
+                <td><strong>Fuel Injection Rail &amp; Pump</strong></td>
+                <td>Fuel Flow (kg/h), Rail Pressure</td>
+                <td><div class="conf-bar-bg" style="width:140px;"><div class="conf-bar-fill" style="width:15%;background:#10B981;"></div></div></td>
+                <td><span class="status-pill status-ack" style="background:#10B98122;color:#10B981;">Nominal</span></td>
+                <td>210.0 hrs</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ==========================================================================
+           PAGE 4: FAULT DETECTION & DIAGNOSTICS
+           ========================================================================== -->
+      <div class="page-view" id="page-fault-detection">
+        <div class="page-header-row">
+          <div>
+            <h2><i class="fa-solid fa-shield-halved"></i> AI Fault Detection &amp; Diagnostics</h2>
+            <p class="page-subtitle">Real-time classification using 300-tree Random Forest &amp; physics-residual feature importance</p>
+          </div>
+          <div class="header-status-pill" id="diagStatusPill">
+            <span class="status-indicator-badge badge-warning" id="diagStatusBadge">Potential Fault</span>
+          </div>
+        </div>
+
+        <div class="fault-diag-body">
+          <div class="fault-left-box">
+            <div class="fault-sub-heading">Detected Anomaly</div>
+            <h4 class="probable-fault-name" id="diagFaultName">Combustion Instability</h4>
+
+            <div class="confidence-wrap">
+              <div class="conf-top">
+                <span>Diagnostic Confidence</span>
+                <span class="conf-val" id="diagConfidenceVal">78%</span>
+              </div>
+              <div class="conf-bar-bg">
+                <div class="conf-bar-fill" id="diagConfidenceBar" style="width: 78%;"></div>
+              </div>
+            </div>
+
+            <div class="fault-meta-row">
+              <div class="meta-item">
+                <span class="meta-lbl">Severity</span>
+                <span class="severity-badge sev-high" id="diagSeverityBadge">High</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-lbl">Detected At</span>
+                <span class="meta-val" id="diagDetectedTime">10:21:08 AM</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="fault-right-box">
+            <div class="fault-sub-heading">Top Contributing Parameters (Click to highlight in 3D)</div>
+            <div class="contrib-list" id="contribList">
+              <div class="contrib-item clickable-contrib" data-metric="egt" title="Click to inspect EGT in 3D">
+                <div class="contrib-row">
+                  <span class="param-name">EGT (Exhaust Gas Temp)</span>
+                  <span class="param-dev dev-high" id="dev-egt-val">+32%</span>
+                </div>
+                <div class="contrib-bar-bg">
+                  <div class="contrib-bar-fill bar-red" id="dev-egt-bar" style="width: 85%;"></div>
+                </div>
+                <span class="contrib-desc">High Deviation over Twin Baseline</span>
+              </div>
+
+              <div class="contrib-item clickable-contrib" data-metric="vib" title="Click to inspect Vibration in 3D">
+                <div class="contrib-row">
+                  <span class="param-name">Vibration (RMS g)</span>
+                  <span class="param-dev dev-high" id="dev-vib-val">+28%</span>
+                </div>
+                <div class="contrib-bar-bg">
+                  <div class="contrib-bar-fill bar-red" id="dev-vib-bar" style="width: 75%;"></div>
+                </div>
+                <span class="contrib-desc">High Mechanical Deviation</span>
+              </div>
+
+              <div class="contrib-item clickable-contrib" data-metric="cht" title="Click to inspect CHT in 3D">
+                <div class="contrib-row">
+                  <span class="param-name">CHT (Cylinder Head Temp)</span>
+                  <span class="param-dev dev-med" id="dev-cht-val">+18%</span>
+                </div>
+                <div class="contrib-bar-bg">
+                  <div class="contrib-bar-fill bar-orange" id="dev-cht-bar" style="width: 50%;"></div>
+                </div>
+                <span class="contrib-desc">Moderate Thermal Deviation</span>
+              </div>
+
+              <div class="contrib-item clickable-contrib" data-metric="rpm" title="Click to inspect RPM in 3D">
+                <div class="contrib-row">
+                  <span class="param-name">RPM Stability</span>
+                  <span class="param-dev dev-low" id="dev-rpm-val">+5%</span>
+                </div>
+                <div class="contrib-bar-bg">
+                  <div class="contrib-bar-fill bar-green" id="dev-rpm-bar" style="width: 20%;"></div>
+                </div>
+                <span class="contrib-desc">Low Deviation</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual Sensor Input Scorer -->
+        <div class="section-card" style="margin-top:12px;">
+          <div class="section-header">
+            <div class="sec-title"><i class="fa-solid fa-sliders"></i> Manual Sensor Scoring (POST /api/predict)</div>
+          </div>
+          <p class="manual-hint">Override raw sensor channels to test AI response in real time against the physics twin baseline:</p>
+          <div class="manual-inputs-grid" id="manualForm"></div>
+          <div class="manual-actions" style="margin-top:10px;">
+            <button id="scoreBtn" class="action-btn"><i class="fa-solid fa-calculator"></i> Score This Reading</button>
+          </div>
+          <div id="manualResult" class="manual-result-box"></div>
+        </div>
+      </div>
+
+      <!-- ==========================================================================
+           PAGE 5: MISSION ANALYSIS & FEASIBILITY
+           ========================================================================== -->
+      <div class="page-view" id="page-mission-analysis">
+        <div class="page-header-row">
+          <div>
+            <h2><i class="fa-solid fa-plane-up"></i> Mission Analysis &amp; Flight Feasibility</h2>
+            <p class="page-subtitle">Interactive mission envelope evaluation and autonomous GO / CAUTION / INSPECTION recommendations</p>
+          </div>
+          <div class="mission-status-pill" id="missionDecisionBadge">
+            <span class="badge-go" id="missionDecisionText">RECOMMENDATION: GO</span>
+          </div>
+        </div>
+
+        <div class="mission-analysis-body">
+          <div class="mission-profile-col">
+            <div class="analytics-title">
+              <span>Planned Mission Profile</span>
+              <span class="analytics-sub">Altitude (ft) vs Flight Time (hrs)</span>
+            </div>
+            <div class="chart-canvas-wrap" style="height:200px;">
+              <canvas id="missionProfileChart"></canvas>
+            </div>
+            <div class="mission-specs-row">
+              <div class="spec-col interactive-spec" id="specDurationBox" title="Click to cycle planned duration">
+                <span class="spec-lbl">Planned Duration (Click to change)</span>
+                <span class="spec-val" id="mDuration">4.0 hrs</span>
+              </div>
+              <div class="spec-col interactive-spec" id="specAltBox" title="Click to cycle planned altitude">
+                <span class="spec-lbl">Max Altitude (Click to change)</span>
+                <span class="spec-val" id="mMaxAlt">18,000 ft</span>
+              </div>
+              <div class="spec-col">
+                <span class="spec-lbl">Avg Throttle</span>
+                <span class="spec-val" id="mAvgThrottle">68%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mission-feasibility-col">
+            <div class="analytics-title">
+              <span>Mission Feasibility</span>
+            </div>
+            <div class="feasibility-donut-wrap">
+              <canvas id="feasibilityDonut" width="130" height="130"></canvas>
+              <div class="feasibility-center-text">
+                <span class="feas-pct" id="feasibilityPct">72%</span>
+                <span class="feas-status" id="feasibilityStatus">Acceptable</span>
+              </div>
+            </div>
+
+            <div class="risk-factors-card">
+              <div class="risk-title">Dynamic Risk Factors</div>
+              <ul class="risk-list" id="riskFactorsList">
+                <li id="riskEgtItem"><i class="fa-solid fa-circle-dot dot-orange"></i> EGT approaching thermal limit</li>
+                <li id="riskRulItem"><i class="fa-solid fa-circle-dot dot-yellow"></i> RUL margin moderate for 4h mission</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==========================================================================
+           PAGE 6: ALERTS CENTER
+           ========================================================================== -->
+      <div class="page-view" id="page-alerts">
+        <div class="page-header-row">
+          <div>
+            <h2><i class="fa-solid fa-bell"></i> Alerts &amp; Annunciator Center</h2>
+            <p class="page-subtitle">Real-time warning notifications, caution annunciators and acknowledgment workflow</p>
+          </div>
+          <div class="alert-filter-controls">
+            <button class="filter-pill active" data-filter="all">All</button>
+            <button class="filter-pill" data-filter="active">Active</button>
+            <button class="filter-pill" data-filter="ack">Acknowledged</button>
+          </div>
+        </div>
+
+        <div class="alerts-table-wrap section-card">
+          <table class="alerts-table" id="alertsTable">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Alert</th>
+                <th>Severity</th>
+                <th>Status</th>
+                <th>Details</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="alertsTableBody">
+              <!-- Populated dynamically via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ==========================================================================
+           PAGE 7: REPORTS & HISTORY
+           ========================================================================== -->
+      <div class="page-view" id="page-reports">
+        <div class="page-header-row">
+          <div>
+            <h2><i class="fa-solid fa-file-waveform"></i> Reports &amp; Mission History</h2>
+            <p class="page-subtitle">One-click engineering report generation, flight log exports and SQLite persistent mission history</p>
+          </div>
+          <div class="reports-system-pill">
+            <i class="fa-solid fa-circle-check sys-ok-icon"></i>
+            <span>System Status: <strong id="sysStatusText">All Systems Operational</strong></span>
+          </div>
+        </div>
+
+        <div class="reports-body">
+          <div class="export-cards-row">
+            <div class="export-card main-report-card" id="btnGenComprehensiveReport">
+              <div class="export-icon report-all-icon"><i class="fa-solid fa-file-waveform"></i></div>
+              <span class="export-name">Comprehensive Report</span>
+              <span class="export-desc">Generate PDF/HTML report with live telemetry, diagnostics &amp; GO/CAUTION recommendation</span>
+            </div>
+
+            <div class="export-card" id="btnExportHealth">
+              <div class="export-icon pdf-icon"><i class="fa-solid fa-file-pdf"></i></div>
+              <span class="export-name">Health Report</span>
+              <span class="export-desc">PDF summary of degradation &amp; components</span>
+            </div>
+
+            <div class="export-card" id="btnExportMission">
+              <div class="export-icon pdf-icon"><i class="fa-solid fa-file-pdf"></i></div>
+              <span class="export-name">Mission Report</span>
+              <span class="export-desc">Telemetry profile &amp; flight envelope</span>
+            </div>
+
+            <div class="export-card" id="btnExportAlerts">
+              <div class="export-icon doc-icon"><i class="fa-solid fa-file-lines"></i></div>
+              <span class="export-name">Alerts Log</span>
+              <span class="export-desc">Event timeline &amp; warning history</span>
+            </div>
+
+            <div class="export-card" id="btnExportAll">
+              <div class="export-icon zip-icon"><i class="fa-solid fa-file-zipper"></i></div>
+              <span class="export-name">Export Package</span>
+              <span class="export-desc">Complete telemetry package (.json + .csv)</span>
+            </div>
+          </div>
+
+          <!-- Mission History from Database -->
+          <div class="section-card" style="margin-top:12px;">
+            <div class="section-header">
+              <div class="sec-title"><i class="fa-solid fa-database"></i> SQLite Mission History Log (digital_twin.db)</div>
+              <div class="hist-toolbar">
+                <button class="action-btn" id="btnRefreshHistory"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+              </div>
+            </div>
+            <div class="alerts-table-wrap">
+              <table class="alerts-table" id="historyTableEl">
+                <thead>
+                  <tr>
+                    <th>Run #</th>
+                    <th>Timestamp</th>
+                    <th>Mode</th>
+                    <th>Ground Truth Fault</th>
+                    <th>AI Predicted Fault</th>
+                    <th>Confidence</th>
+                    <th>RUL</th>
+                    <th>Reliability</th>
+                  </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                  <!-- Loaded via JS from /api/history -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==========================================================================
+           PAGE 8: SETTINGS & MODEL METADATA
+           ========================================================================== -->
+      <div class="page-view" id="page-settings">
+        <div class="page-header-row">
+          <div>
+            <h2><i class="fa-solid fa-gear"></i> Ground Station &amp; Model Settings</h2>
+            <p class="page-subtitle">Configure telemetry polling rates, annunciator alarm thresholds, and inspect trained ML model specifications</p>
+          </div>
+        </div>
+
+        <div class="sim-lab-grid">
+          <div class="section-card">
+            <div class="section-header">
+              <div class="sec-title"><i class="fa-solid fa-tower-broadcast"></i> Ground Station Telemetry Parameters</div>
+            </div>
+            <div class="sim-card-body">
+              <label class="form-label">Telemetry Update Rate:
+                <select class="form-select" id="settingUpdateRate">
+                  <option value="1">1 Hz (1000 ms - Standard Flight)</option>
+                  <option value="2">2 Hz (500 ms - High Precision)</option>
+                  <option value="5">5 Hz (200 ms - Rapid Telemetry)</option>
+                </select>
+              </label>
+
+              <label class="form-label">EGT Max Warning Limit (&deg;C):
+                <input type="number" value="850" id="settingEgtLimit">
+              </label>
+
+              <label class="form-label">CHT Max Warning Limit (&deg;C):
+                <input type="number" value="145" id="settingChtLimit">
+              </label>
+
+              <label class="form-label">Vibration RMS Alert Limit (g):
+                <input type="number" step="0.05" value="0.35" id="settingVibLimit">
+              </label>
+
+              <button class="action-btn" style="margin-top:10px;" onclick="alert('Threshold settings saved successfully.')">Save Thresholds</button>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-header">
+              <div class="sec-title"><i class="fa-solid fa-brain"></i> AI / ML Model Specifications</div>
+            </div>
+            <div class="sim-card-body">
+              <table class="rep-table">
+                <tr><td>Fault Classifier Model</td><td><strong>RandomForestClassifier (300 estimators)</strong></td></tr>
+                <tr><td>RUL Regressor Model</td><td><strong>GradientBoostingRegressor (300 estimators)</strong></td></tr>
+                <tr><td>Scikit-Learn Version</td><td><strong>1.8.0</strong></td></tr>
+                <tr><td>Classification Macro F1</td><td><strong>0.964 (~98% Accuracy)</strong></td></tr>
+                <tr><td>RUL Mean Absolute Error</td><td><strong>10.5 cycles (125-cycle cap)</strong></td></tr>
+                <tr><td>Feature Engineering</td><td><strong>Physics Residuals + 5-Cycle Rolling Mean/Std</strong></td></tr>
+                <tr><td>Database Backend</td><td><strong>SQLite 3 (WAL mode enabled)</strong></td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ================= COMPREHENSIVE REPORT MODAL (HTML & PDF) ================= -->
+  <div class="modal-overlay" id="reportModal" style="display:none;">
+    <div class="report-modal-card">
+      <div class="report-modal-header">
+        <div class="login-sec-badge"><i class="fa-solid fa-file-waveform"></i> AeroTwin-AI &bull; Comprehensive Engineering Report</div>
+        <div class="report-header-actions">
+          <button class="action-btn" id="btnDownloadPdfReport"><i class="fa-solid fa-file-arrow-down"></i> Download PDF</button>
+          <button class="action-btn" id="btnPrintReport"><i class="fa-solid fa-print"></i> Print</button>
+          <button class="close-modal-btn" id="closeReportModal">&times;</button>
+        </div>
+      </div>
+      <div class="report-modal-body" id="printableReportContent">
+        <!-- Rendered dynamically by JS with current live data -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SECTION 1: LOGIN MODAL SCREEN ================= -->
+  <div class="modal-overlay" id="loginModal" style="display:none;">
+    <div class="login-card-modal">
+      <div class="login-modal-header">
+        <div class="login-sec-badge"><i class="fa-solid fa-user-lock"></i> 1. OPERATOR LOGIN</div>
+        <button class="close-modal-btn" id="closeLoginModal">&times;</button>
+      </div>
+      <div class="login-modal-body">
+        <div class="login-brand-strip">
+          <div class="brand-logo-circle"><i class="fa-solid fa-cube"></i></div>
+          <div>
+            <h3>AeroTwin-AI</h3>
+            <p>Engine Health Monitoring &amp; Prediction</p>
+          </div>
+        </div>
+
+        <div class="uav-preview-graphic">
+          <div class="uav-drone-art">
+            <i class="fa-solid fa-plane-departure drone-icon"></i>
+            <span>MALE UAV Surveillance Platform &bull; Unit 07</span>
+          </div>
+        </div>
+
+        <form id="loginForm" onsubmit="event.preventDefault(); fakeLogin();">
+          <div class="input-group">
+            <label><i class="fa-solid fa-user"></i> Username</label>
+            <input type="text" id="loginUser" placeholder="Enter username" value="operator@uav-defense.in" required>
+          </div>
+          <div class="input-group">
+            <label><i class="fa-solid fa-lock"></i> Password</label>
+            <div class="pwd-wrap">
+              <input type="password" id="loginPass" placeholder="Enter password" value="••••••••••••" required>
+              <i class="fa-regular fa-eye toggle-pwd" onclick="togglePasswordVisibility()"></i>
+            </div>
+          </div>
+          <div class="login-options-row">
+            <label class="checkbox-label">
+              <input type="checkbox" checked> Remember me
+            </label>
+            <a href="#" class="forgot-link">Forgot password?</a>
+          </div>
+          <button type="submit" class="btn-primary-login">LOGIN</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Application Javascript logic -->
+<script src="/static/app.js"></script>
+</body>
+</html>

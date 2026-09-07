@@ -1,0 +1,13 @@
+# Render Blueprint. Render's plan names/pricing changed in April 2026, so this
+# intentionally does NOT hardcode a plan tier -- pick one (a free/Hobby tier
+# may be available) when the service is created; see render.com/pricing for
+# current options.
+services:
+  - type: web
+    name: uav-engine-digital-twin
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 8000
+    healthCheckPath: /api/health

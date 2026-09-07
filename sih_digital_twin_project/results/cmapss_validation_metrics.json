@@ -1,0 +1,6 @@
+{
+  "real_dataset": "NASA C-MAPSS FD001",
+  "rul_mae_cycles": 13.351944430090189,
+  "rul_cap": 125,
+  "n_test_units": 100
+}
