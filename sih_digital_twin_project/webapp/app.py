@@ -75,7 +75,7 @@ def history_detail(run_id: int):
 
 # --- serve the frontend ---
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
+app.mount("/data", StaticFiles(directory="../synthetic_data"), name="data")
 
 @app.get("/")
 def index():

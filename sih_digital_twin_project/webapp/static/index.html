@@ -51,25 +51,7 @@
         <i class="fa-solid fa-file-waveform"></i> Generate Report
       </button>
 
-      <div class="sih-badge">
-        <div class="sih-icon-wrap">
-          <i class="fa-solid fa-microchip sih-glow"></i>
-        </div>
-        <div class="sih-text">
-          <span class="sih-title">SMART INDIA</span>
-          <span class="sih-sub">HACKATHON 2026</span>
-        </div>
-      </div>
-
-      <div class="conn-pill" id="connStatus">
-        <span class="conn-dot conn-ok"></span> API Connected
-      </div>
-
       <div class="clock-box" id="clock">10:24:36 AM UTC</div>
-
-      <button class="login-toggle-btn" id="openLoginBtn" title="Toggle Operator Login">
-        <i class="fa-regular fa-circle-user"></i> Login
-      </button>
     </div>
   </header>
 
@@ -203,13 +185,26 @@
           <div class="twin-panel-header">
             <div class="twin-title-wrap">
               <span class="twin-badge-pill"><i class="fa-solid fa-cube"></i> PHYSICS-BASED DIGITAL TWIN</span>
-              <h2>4-Cylinder Horizontally Opposed Aero Piston Engine (Rotax 914 F/UL)</h2>
+              <h2>4-Cylinder Horizontally Opposed Aero Piston Engine — MALE UAV Platform</h2>
             </div>
             <div class="twin-header-actions">
               <div class="view-switch-btns">
                 <button class="switch-btn active" id="btnView3D"><i class="fa-solid fa-cube"></i> 3D Model</button>
                 <button class="switch-btn" id="btnViewSchematic"><i class="fa-solid fa-diagram-project"></i> Schematic</button>
               </div>
+              <select id="cameraViewSelect" class="cam-view-selector" title="Select engine view">
+                <option value="isometric_fl">&#9673; Isometric (Front-Left)</option>
+                <option value="front">&#8594; Front View</option>
+                <option value="rear">&#8592; Rear View</option>
+                <option value="right_side">&#8595; Right Side View</option>
+                <option value="right">&#8600; Right View</option>
+                <option value="top">&#8593; Top View</option>
+                <option value="bottom">&#8595; Bottom View</option>
+                <option value="isometric_rr">&#9674; Isometric (Rear-Right)</option>
+                <option value="exploded">&#10022; Exploded View</option>
+                <option value="sectional">&#9671; Sectional Cylinder View</option>
+                <option value="airflow">&#10148; Airflow / Exhaust View</option>
+              </select>
             </div>
           </div>
 
@@ -417,66 +412,129 @@
         <div class="page-header-row">
           <div>
             <h2><i class="fa-solid fa-microchip"></i> Mission &amp; Telemetry Simulation Lab</h2>
-            <p class="page-subtitle">Upload datasets, select flight profiles, inject fault test cases and inspect physics twin residuals</p>
+            <p class="page-subtitle">Physics-informed synthetic telemetry replay, real-time baseline residual calculation, AI fault detection &amp; prognostics</p>
           </div>
           <div class="page-actions">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:11px; color:var(--text-muted); font-weight:600;"><i class="fa-solid fa-gauge"></i> Speed:</span>
+              <select id="simSpeedSelect" class="form-select" style="width: auto; padding: 4px 8px; font-size: 11px;">
+                <option value="1">1x (Real-time)</option>
+                <option value="2">2x</option>
+                <option value="4" selected>4x</option>
+                <option value="8">8x</option>
+                <option value="16">16x (Fast)</option>
+              </select>
+            </div>
             <button class="action-btn" id="btnRunLabSim"><i class="fa-solid fa-play"></i> Start Mission</button>
+            <button class="action-btn" id="btnStopLabSim" style="background:#ef444422; border-color:#ef4444; color:#fca5a5; display:none;"><i class="fa-solid fa-stop"></i> Stop Mission</button>
           </div>
         </div>
 
         <div class="sim-lab-grid">
-          <!-- Column 1: Dataset Selection & Upload -->
+          <!-- 1. Mission Scenario & Trajectory Selection -->
           <div class="section-card">
             <div class="section-header">
-              <div class="sec-title"><i class="fa-solid fa-database"></i> 1. Telemetry Dataset Source</div>
+              <div class="sec-title"><i class="fa-solid fa-vial-circle-check"></i> 1. Synthetic Data Scenario &amp; Trajectory Selector</div>
+              <span id="simDatasetStatus" class="status-pill status-ack" style="font-size:10px;">Dataset Loaded</span>
             </div>
             <div class="sim-card-body">
-              <label class="form-label">Pre-loaded Aero Datasets:
-                <select id="simDatasetSelect" class="form-select">
-                  <option value="synthetic_test">Synthetic MALE UAV Mission Test Set (30k cycles, 100 units)</option>
-                  <option value="cmapss_test">C-MAPSS Turbomachinery Degradation Benchmark (FD001 Test)</option>
-                  <option value="synthetic_train">Synthetic Full Mission Training Corpus (100 units)</option>
-                  <option value="ntsb_accidents">NTSB Reciprocating Engine Accident Data</option>
-                  <option value="custom_upload">Custom Uploaded File (.csv / .json)</option>
-                </select>
-              </label>
-
-              <!-- Drag and drop dataset uploader -->
-              <div class="dataset-upload-zone" id="datasetDropZone">
-                <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
-                <h4>Upload Custom Telemetry File</h4>
-                <p>Drag &amp; drop <code>.csv</code> or <code>.json</code> sensor logs here, or click to browse</p>
-                <input type="file" id="datasetFileInput" accept=".csv,.json" style="display:none;">
-                <button type="button" class="upload-browse-btn" onclick="document.getElementById('datasetFileInput').click()">Browse Files</button>
-                <div id="uploadFileInfo" class="upload-file-info" style="display:none;"></div>
+              <div class="sim-select-row" style="display:grid; grid-template-columns: 1.4fr 1fr; gap:12px; margin-bottom:10px;">
+                <div>
+                  <label class="form-label" style="font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px; display:block;">
+                    Detected Scenario / Condition:
+                  </label>
+                  <select id="simScenarioSelect" class="form-select" style="width:100%;">
+                    <option value="" disabled selected>Scanning synthetic dataset…</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px; display:block;">
+                    Synthetic Trajectory / Run:
+                  </label>
+                  <select id="simTrajectorySelect" class="form-select" style="width:100%;">
+                    <option value="random">🎲 Random Valid Trajectory</option>
+                  </select>
+                </div>
+              </div>
+              <div id="scenarioInfo" class="scenario-info-banner">
+                Scanning synthetic dataset files for conditions and trajectories…
               </div>
             </div>
           </div>
 
-          <!-- Column 2: Test Case & Failure Mode Config -->
-          <div class="section-card">
+          <!-- 2. Live Telemetry & Residuals Monitor -->
+          <div class="section-card" id="simLiveTelemetryCard">
             <div class="section-header">
-              <div class="sec-title"><i class="fa-solid fa-vial"></i> 2. Test Case &amp; Fault Injection</div>
+              <div class="sec-title"><i class="fa-solid fa-satellite-dish"></i> 2. Live Telemetry &amp; Physics Residuals</div>
+              <div class="sim-meta-right" style="display:flex; align-items:center; gap:10px;">
+                <span id="simPhaseBadge" class="sim-phase-badge">STANDBY</span>
+                <span id="simCycleCounter" class="sim-cycle-tag">Cycle 0 / 0</span>
+              </div>
             </div>
             <div class="sim-card-body">
-              <!-- Quick Preset Test Cases -->
-              <label class="form-label">Quick Scenario Presets:</label>
-              <div class="preset-cases-grid">
-                <button class="preset-btn active" data-preset="healthy">Normal</button>
-                <button class="preset-btn" data-preset="cooling_airflow_blockage">Overheating</button>
-                <button class="preset-btn" data-preset="bearing_wear">Component Wear</button>
-                <button class="preset-btn" data-preset="fuel_pump_degradation">Fuel System Failure</button>
-                <button class="preset-btn" data-preset="exhaust_valve_leak">High Vibration</button>
-                <button class="preset-btn" data-preset="spark_plug_fouling">Sensor Failure</button>
+              <div class="sim-live-metrics-grid">
+                <div class="sim-metric-cell">
+                  <span class="smc-label">RPM</span>
+                  <span class="smc-val" id="simRpmVal">--</span>
+                  <span class="smc-dev" id="simRpmDev">Δ 0%</span>
+                </div>
+                <div class="sim-metric-cell">
+                  <span class="smc-label">CHT Avg</span>
+                  <span class="smc-val" id="simChtVal">--</span>
+                  <span class="smc-dev" id="simChtDev">Δ 0%</span>
+                </div>
+                <div class="sim-metric-cell">
+                  <span class="smc-label">EGT Avg</span>
+                  <span class="smc-val" id="simEgtVal">--</span>
+                  <span class="smc-dev" id="simEgtDev">Δ 0%</span>
+                </div>
+                <div class="sim-metric-cell">
+                  <span class="smc-label">Oil Press</span>
+                  <span class="smc-val" id="simOilPVal">--</span>
+                  <span class="smc-dev" id="simOilPDev">Δ 0%</span>
+                </div>
+                <div class="sim-metric-cell">
+                  <span class="smc-label">Fuel Flow</span>
+                  <span class="smc-val" id="simFuelVal">--</span>
+                  <span class="smc-dev" id="simFuelDev">Δ 0%</span>
+                </div>
+                <div class="sim-metric-cell">
+                  <span class="smc-label">Vibration</span>
+                  <span class="smc-val" id="simVibVal">--</span>
+                  <span class="smc-dev" id="simVibDev">Nominal</span>
+                </div>
               </div>
 
-              <div class="sim-params-row">
-                <label class="form-label">Cycles:
-                  <input type="number" id="simCyclesInput" value="350" min="50" max="800">
-                </label>
-                <label class="form-label">RNG Seed:
-                  <input type="number" id="simSeedInput" value="42">
-                </label>
+              <!-- AI Inference Diagnostic Strip -->
+              <div class="sim-ai-strip">
+                <div class="ai-strip-item">
+                  <span class="ai-strip-lbl">Engine Health:</span>
+                  <strong class="val-blue" id="simAiHealthVal">--</strong>
+                </div>
+                <div class="ai-strip-item">
+                  <span class="ai-strip-lbl">AI Detected Fault:</span>
+                  <strong class="val-orange" id="simAiFaultVal">--</strong>
+                </div>
+                <div class="ai-strip-item">
+                  <span class="ai-strip-lbl">Affected Component:</span>
+                  <strong class="val-cyan" id="simAiCompVal">--</strong>
+                </div>
+                <div class="ai-strip-item">
+                  <span class="ai-strip-lbl">Confidence:</span>
+                  <strong id="simAiConfVal">--</strong>
+                </div>
+                <div class="ai-strip-item">
+                  <span class="ai-strip-lbl">Predicted RUL:</span>
+                  <strong class="val-green" id="simAiRulVal">--</strong>
+                </div>
+                <div class="ai-strip-item">
+                  <span class="ai-strip-lbl">Mission Reliability:</span>
+                  <strong class="val-purple" id="simAiRelVal">--</strong>
+                </div>
+                <div class="ai-strip-item">
+                  <span class="ai-strip-lbl">Success Prob:</span>
+                  <strong class="val-cyan" id="simAiSuccessVal">--</strong>
+                </div>
               </div>
             </div>
           </div>
@@ -486,20 +544,81 @@
         <div class="section-card" style="margin-top: 12px;">
           <div class="section-header">
             <div class="sec-title"><i class="fa-solid fa-chart-line"></i> 3. Simulation Results &amp; Physics Residuals</div>
-            <div class="sim-meta-right">
-              <span id="simResultSummary" class="sim-summary-text">Simulated: Healthy (350 cycles) &bull; Run #1</span>
-              <button class="action-btn" id="btnTransferToTwin"><i class="fa-solid fa-cube"></i> Load in 3D Twin</button>
+            <div class="sim-meta-right" style="display:flex; align-items:center; gap:10px;">
+              <span id="simResultSummary" class="sim-summary-text">Ready for simulation</span>
+              <button class="action-btn" id="btnTransferToTwin"><i class="fa-solid fa-cube"></i> View in 3D Twin</button>
             </div>
           </div>
 
           <div class="sim-results-grid">
             <div class="sim-chart-wrap">
               <div class="chart-header-compact">CHT &amp; EGT Actual vs Twin Baseline</div>
-              <canvas id="simTempChart"></canvas>
+              <div style="position:relative; height:200px; width:100%;">
+                <canvas id="simTempChart"></canvas>
+              </div>
             </div>
             <div class="sim-chart-wrap">
-              <div class="chart-header-compact">Oil Pressure &amp; Vibration Residuals</div>
-              <canvas id="simMechanicalChart"></canvas>
+              <div class="chart-header-compact">Oil Pressure, Vibration &amp; Fuel Residuals</div>
+              <div style="position:relative; height:200px; width:100%;">
+                <canvas id="simMechanicalChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mission Timeline & Real-Time State -->
+        <div class="section-card" style="margin-top: 12px;">
+          <div class="section-header">
+            <div class="sec-title"><i class="fa-solid fa-timeline"></i> 4. Mission Timeline &amp; State Progression</div>
+            <div class="sim-meta-right" style="font-weight: bold; color: #4fc3e8;">
+              Phase: <span id="currentMissionPhase">STANDBY</span>
+            </div>
+          </div>
+          <div class="sim-card-body">
+            <div class="mission-timeline" id="missionTimeline">
+              <!-- Timeline nodes will be injected here dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Mission Final Summary (Hidden until completion) -->
+        <div id="missionFinalSummary" class="section-card" style="margin-top: 12px; display: none; border-color: #00d2ff; background: rgba(0, 210, 255, 0.03);">
+          <div class="section-header">
+            <div class="sec-title" style="color:#00d2ff;"><i class="fa-solid fa-flag-checkered"></i> Mission Complete &bull; Final Diagnostics &amp; Prognostics Summary</div>
+            <button class="action-btn" id="btnTransferFinalToTwin"><i class="fa-solid fa-cube"></i> Inspect in 3D Twin</button>
+          </div>
+          <div class="sim-card-body">
+            <div class="summary-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
+              <div class="summary-box">
+                <span class="sb-lbl">Engine Health Index</span>
+                <span id="summaryHealthVal" class="sb-val val-blue">--</span>
+                <small class="sb-sub">Overall Propulsion Condition</small>
+              </div>
+              <div class="summary-box">
+                <span class="sb-lbl">Detected Fault &amp; Component</span>
+                <span id="summaryFaultVal" class="sb-val val-orange">--</span>
+                <small class="sb-sub" id="summaryCompVal">Affected Component: --</small>
+              </div>
+              <div class="summary-box">
+                <span class="sb-lbl">Remaining Useful Life (RUL)</span>
+                <span id="summaryRulVal" class="sb-val val-green">--</span>
+                <small class="sb-sub" id="summaryRulHrsVal">-- hrs estimated flight</small>
+              </div>
+              <div class="summary-box">
+                <span class="sb-lbl">Mission Reliability</span>
+                <span id="summaryReliabilityVal" class="sb-val val-purple">--</span>
+                <small class="sb-sub">Probabilistic Degradation Score</small>
+              </div>
+              <div class="summary-box">
+                <span class="sb-lbl">Mission Success Probability</span>
+                <span id="summarySuccessVal" class="sb-val val-cyan">--</span>
+                <small class="sb-sub">Endurance Feasibility</small>
+              </div>
+              <div class="summary-box">
+                <span class="sb-lbl">Executive Recommendation</span>
+                <span id="summaryRecVal" class="sb-val" style="font-weight:bold;">--</span>
+                <small class="sb-sub" id="summaryRecDesc">Flight Certification</small>
+              </div>
             </div>
           </div>
         </div>

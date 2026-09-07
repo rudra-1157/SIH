@@ -207,6 +207,12 @@ function initThreeEngine() {
     document.getElementById('btnAutoRotate').style.color = isAutoRotating ? '#00D2FF' : '';
   });
 
+  // View Selector
+  const viewSelect = document.getElementById('cameraViewSelect');
+  if (viewSelect) {
+    viewSelect.addEventListener('change', (e) => setCameraView(e.target.value));
+  }
+
   window.addEventListener('resize', () => {
     if (!container) return;
     const newW = container.clientWidth;
@@ -219,232 +225,502 @@ function initThreeEngine() {
   animateThree();
 }
 
+// Sub-assembly groups for exploded/sectional views
+let leftBank, rightBank, exhaustAssembly, intakeAssembly, crankcaseGroup, gearboxGroup;
+let crankcaseMeshes = [], intakeMeshes = [], airflowParticles = null, airflowActive = false;
+let isSectional = false;
+
 function buildAeroPistonEngine() {
   engineGroup = new THREE.Group();
   scene.add(engineGroup);
   interactiveMeshes = [];
+  cylinderHeads = [];
+  exhaustPipes = [];
+  pistons = [];
 
-  const crankcaseMat = new THREE.MeshStandardMaterial({ color: 0x485868, metalness: 0.85, roughness: 0.28 });
-  const cylinderBlockMat = new THREE.MeshStandardMaterial({ color: 0x2A3540, metalness: 0.9, roughness: 0.35 });
-  const finMat = new THREE.MeshStandardMaterial({ color: 0x5C6D7E, metalness: 0.8, roughness: 0.3 });
-  const chromeMat = new THREE.MeshStandardMaterial({ color: 0xDCE8F0, metalness: 0.95, roughness: 0.15 });
-  const goldBrassMat = new THREE.MeshStandardMaterial({ color: 0xC8963E, metalness: 0.8, roughness: 0.25 });
-  const exhaustMat = new THREE.MeshStandardMaterial({ color: 0x332B25, metalness: 0.7, roughness: 0.4, emissive: 0xFF3300, emissiveIntensity: 0.4 });
-  const carbonPropMat = new THREE.MeshStandardMaterial({ color: 0x15181C, metalness: 0.3, roughness: 0.4 });
+  // ── Materials ────────────────────────────────────────────────────────────────
+  const crankcaseMat  = new THREE.MeshStandardMaterial({ color: 0x4A5A6B, metalness: 0.88, roughness: 0.25 });
+  const alloyMat      = new THREE.MeshStandardMaterial({ color: 0x2E3C4A, metalness: 0.92, roughness: 0.30 });
+  const finMat        = new THREE.MeshStandardMaterial({ color: 0x607080, metalness: 0.80, roughness: 0.28 });
+  const chromeMat     = new THREE.MeshStandardMaterial({ color: 0xD8E8F4, metalness: 0.96, roughness: 0.12 });
+  const steelMat      = new THREE.MeshStandardMaterial({ color: 0xA0B0C0, metalness: 0.95, roughness: 0.18 });
+  const brassMat      = new THREE.MeshStandardMaterial({ color: 0xC8963E, metalness: 0.82, roughness: 0.22 });
+  const exhaustMat    = new THREE.MeshStandardMaterial({ color: 0x2E2620, metalness: 0.70, roughness: 0.42, emissive: 0xFF3300, emissiveIntensity: 0.35 });
+  const carbonPropMat = new THREE.MeshStandardMaterial({ color: 0x141820, metalness: 0.30, roughness: 0.45 });
+  const rubberMat     = new THREE.MeshStandardMaterial({ color: 0x1A1A1A, metalness: 0.05, roughness: 0.90 });
+  const fuelRailMat   = new THREE.MeshStandardMaterial({ color: 0x38BDF8, metalness: 0.92, roughness: 0.18 });
+  const oilMat        = new THREE.MeshStandardMaterial({ color: 0x1E3A8A, metalness: 0.65, roughness: 0.32 });
+  const plasticBlack  = new THREE.MeshStandardMaterial({ color: 0x0D1117, metalness: 0.10, roughness: 0.80 });
 
-  // Center Crankcase Block
-  const crankcaseGeo = new THREE.BoxGeometry(1.6, 1.1, 2.2);
-  const crankcase = new THREE.Mesh(crankcaseGeo, crankcaseMat);
-  crankcase.castShadow = true;
-  crankcase.userData = { compKey: 'oil' };
-  engineGroup.add(crankcase);
-  interactiveMeshes.push(crankcase);
+  // ── Crankcase Block ──────────────────────────────────────────────────────────
+  crankcaseGroup = new THREE.Group();
+  engineGroup.add(crankcaseGroup);
 
-  for (let r = -0.8; r <= 0.8; r += 0.35) {
-    const ribGeo = new THREE.BoxGeometry(1.65, 0.08, 0.1);
-    const rib = new THREE.Mesh(ribGeo, crankcaseMat);
-    rib.position.set(0, 0.55, r);
-    engineGroup.add(rib);
+  const caseGeo   = new THREE.BoxGeometry(1.55, 1.00, 2.10);
+  const caseMain  = new THREE.Mesh(caseGeo, crankcaseMat);
+  caseMain.castShadow = true;
+  caseMain.userData = { compKey: 'oil' };
+  crankcaseGroup.add(caseMain);
+  crankcaseMeshes.push(caseMain);
+  interactiveMeshes.push(caseMain);
+
+  // Case ribs
+  for (let r = -0.85; r <= 0.85; r += 0.28) {
+    const ribGeo = new THREE.BoxGeometry(1.60, 0.07, 0.09);
+    const rib    = new THREE.Mesh(ribGeo, finMat);
+    rib.position.set(0, 0.52, r);
+    crankcaseGroup.add(rib);
+    crankcaseMeshes.push(rib);
   }
 
-  // Front Propeller Reduction Gearbox (PRGB) Housing
-  const prgbGeo = new THREE.CylinderGeometry(0.45, 0.65, 0.9, 24);
-  const prgb = new THREE.Mesh(prgbGeo, crankcaseMat);
-  prgb.rotation.x = Math.PI / 2;
-  prgb.position.set(0, 0.15, 1.4);
-  prgb.userData = { compKey: 'rpm' };
-  engineGroup.add(prgb);
-  interactiveMeshes.push(prgb);
+  // Crankshaft (inside crankcase, visible in sectional)
+  const crankGeo  = new THREE.CylinderGeometry(0.12, 0.12, 2.0, 20);
+  const crankMesh = new THREE.Mesh(crankGeo, chromeMat);
+  crankMesh.rotation.z = Math.PI / 2;
+  crankMesh.position.set(0, -0.15, 0);
+  crankMesh.userData = { compKey: 'rpm' };
+  crankcaseGroup.add(crankMesh);
+  interactiveMeshes.push(crankMesh);
 
-  // Propeller Group
+  // Crank throws
+  const throwOffsets = [-0.75, -0.25, 0.25, 0.75];
+  throwOffsets.forEach(zOff => {
+    const throwGeo  = new THREE.BoxGeometry(0.55, 0.08, 0.18);
+    const throwMesh = new THREE.Mesh(throwGeo, steelMat);
+    throwMesh.position.set(0, -0.10, zOff);
+    crankcaseGroup.add(throwMesh);
+  });
+
+  // Oil sump
+  const sumpGeo  = new THREE.BoxGeometry(1.18, 0.28, 1.90);
+  const sump     = new THREE.Mesh(sumpGeo, crankcaseMat);
+  sump.position.set(0, -0.64, 0);
+  sump.userData  = { compKey: 'oil' };
+  crankcaseGroup.add(sump);
+  crankcaseMeshes.push(sump);
+  interactiveMeshes.push(sump);
+
+  // Oil drain plug
+  const drainGeo  = new THREE.CylinderGeometry(0.07, 0.07, 0.12, 12);
+  const drainPlug = new THREE.Mesh(drainGeo, brassMat);
+  drainPlug.position.set(0.3, -0.80, 0.5);
+  drainPlug.userData = { compKey: 'oil' };
+  crankcaseGroup.add(drainPlug);
+
+  // Oil filter
+  const oilFiltGeo  = new THREE.CylinderGeometry(0.16, 0.16, 0.44, 16);
+  const oilFilter   = new THREE.Mesh(oilFiltGeo, oilMat);
+  oilFilter.position.set(-0.72, -0.28, 0.80);
+  oilFilter.userData = { compKey: 'oil' };
+  crankcaseGroup.add(oilFilter);
+  interactiveMeshes.push(oilFilter);
+
+  // Oil pump body
+  const oilPumpGeo  = new THREE.BoxGeometry(0.26, 0.22, 0.36);
+  const oilPump     = new THREE.Mesh(oilPumpGeo, alloyMat);
+  oilPump.position.set(-0.70, -0.52, 0.30);
+  oilPump.userData  = { compKey: 'oil' };
+  crankcaseGroup.add(oilPump);
+  interactiveMeshes.push(oilPump);
+
+  // Starter motor
+  const starterGeo  = new THREE.CylinderGeometry(0.10, 0.10, 0.55, 14);
+  const starter     = new THREE.Mesh(starterGeo, plasticBlack);
+  starter.rotation.z = Math.PI / 2;
+  starter.position.set(0.68, -0.45, -0.90);
+  crankcaseGroup.add(starter);
+
+  // ── Propeller Reduction Gearbox ──────────────────────────────────────────────
+  gearboxGroup = new THREE.Group();
+  gearboxGroup.position.set(0, 0.10, 1.35);
+  engineGroup.add(gearboxGroup);
+
+  const prgbGeo    = new THREE.CylinderGeometry(0.42, 0.60, 0.88, 24);
+  const prgbMesh   = new THREE.Mesh(prgbGeo, crankcaseMat);
+  prgbMesh.rotation.x = Math.PI / 2;
+  prgbMesh.userData = { compKey: 'rpm' };
+  gearboxGroup.add(prgbMesh);
+  interactiveMeshes.push(prgbMesh);
+
+  // PRGB front cover
+  const prgbCoverGeo  = new THREE.CylinderGeometry(0.44, 0.44, 0.10, 24);
+  const prgbCover     = new THREE.Mesh(prgbCoverGeo, alloyMat);
+  prgbCover.rotation.x = Math.PI / 2;
+  prgbCover.position.z = 0.49;
+  gearboxGroup.add(prgbCover);
+
+  // Prop flange bolts (5 bolts)
+  for (let b = 0; b < 5; b++) {
+    const angle   = (b / 5) * Math.PI * 2;
+    const boltGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.06, 8);
+    const bolt    = new THREE.Mesh(boltGeo, brassMat);
+    bolt.rotation.x = Math.PI / 2;
+    bolt.position.set(Math.cos(angle) * 0.34, Math.sin(angle) * 0.34, 0.55);
+    gearboxGroup.add(bolt);
+  }
+
+  // ── Propeller ────────────────────────────────────────────────────────────────
   propellerGroup = new THREE.Group();
-  propellerGroup.position.set(0, 0.15, 1.9);
+  propellerGroup.position.set(0, 0.10, 1.96);
+  engineGroup.add(propellerGroup);
 
-  const spinnerGeo = new THREE.ConeGeometry(0.35, 0.7, 24);
-  const spinner = new THREE.Mesh(spinnerGeo, chromeMat);
+  // Spinner
+  const spinnerGeo = new THREE.ConeGeometry(0.32, 0.62, 24);
+  const spinner    = new THREE.Mesh(spinnerGeo, chromeMat);
   spinner.rotation.x = Math.PI / 2;
+  spinner.position.z = 0.20;
   spinner.userData = { compKey: 'rpm' };
   propellerGroup.add(spinner);
   interactiveMeshes.push(spinner);
 
+  // Spinner back plate
+  const spBackGeo = new THREE.CylinderGeometry(0.33, 0.33, 0.06, 20);
+  const spBack    = new THREE.Mesh(spBackGeo, steelMat);
+  spBack.rotation.x = Math.PI / 2;
+  propellerGroup.add(spBack);
+
+  // 3 blades
   for (let b = 0; b < 3; b++) {
     const bladeArm = new THREE.Group();
-    bladeArm.rotation.z = (b * Math.PI * 2) / 3;
+    bladeArm.rotation.z = (b / 3) * Math.PI * 2;
 
-    const bladeGeo = new THREE.BoxGeometry(0.2, 2.2, 0.04);
-    const blade = new THREE.Mesh(bladeGeo, carbonPropMat);
-    blade.position.set(0, 1.1, 0);
-    blade.rotation.y = 0.25;
-    blade.userData = { compKey: 'rpm' };
+    // Blade body (tapered)
+    const bladeShapeGeo = new THREE.BoxGeometry(0.19, 2.30, 0.038);
+    const blade         = new THREE.Mesh(bladeShapeGeo, carbonPropMat);
+    blade.position.set(0, 1.15, 0);
+    blade.rotation.y = 0.24;
+    blade.userData   = { compKey: 'rpm' };
     interactiveMeshes.push(blade);
 
-    const tipGeo = new THREE.BoxGeometry(0.205, 0.25, 0.045);
-    const tipMat = new THREE.MeshBasicMaterial({ color: 0xFBBF24 });
-    const tip = new THREE.Mesh(tipGeo, tipMat);
-    tip.position.set(0, 2.05, 0);
+    // Tip stripe
+    const tipGeo = new THREE.BoxGeometry(0.195, 0.22, 0.042);
+    const tip    = new THREE.Mesh(tipGeo, new THREE.MeshBasicMaterial({ color: 0xFBBF24 }));
+    tip.position.set(0, 2.14, 0);
 
-    bladeArm.add(blade);
-    bladeArm.add(tip);
+    bladeArm.add(blade, tip);
     propellerGroup.add(bladeArm);
   }
-  engineGroup.add(propellerGroup);
 
-  // 4 Boxer Cylinders
+  // ── Cylinder Banks (4 cylinders: 2 left, 2 right) ────────────────────────────
   const cylinderConfigs = [
-    { id: 1, side: -1, z: 0.55 },
-    { id: 2, side: 1, z: 0.55 },
-    { id: 3, side: -1, z: -0.55 },
-    { id: 4, side: 1, z: -0.55 }
+    { id: 0, side: -1, z:  0.60 },  // Left-front
+    { id: 1, side:  1, z:  0.60 },  // Right-front
+    { id: 2, side: -1, z: -0.60 },  // Left-rear
+    { id: 3, side:  1, z: -0.60 },  // Right-rear
   ];
 
-  cylinderHeads = [];
-  pistons = [];
+  leftBank  = new THREE.Group();
+  rightBank = new THREE.Group();
+  engineGroup.add(leftBank);
+  engineGroup.add(rightBank);
+
+  // Save default bank positions for explode
+  leftBank.userData  = { defaultX: 0 };
+  rightBank.userData = { defaultX: 0 };
 
   cylinderConfigs.forEach(cfg => {
-    const cylGroup = new THREE.Group();
-    cylGroup.position.set(cfg.side * 0.8, 0, cfg.z);
+    const bank      = cfg.side === -1 ? leftBank : rightBank;
+    const cylGroup  = new THREE.Group();
+    cylGroup.position.set(cfg.side * 0.78, 0, cfg.z);
+    cylGroup.userData = { defaultX: cfg.side * 0.78, side: cfg.side };
 
-    const barrelGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.95, 20);
-    const barrel = new THREE.Mesh(barrelGeo, cylinderBlockMat);
+    // ── Cylinder barrel ──
+    const barrelGeo = new THREE.CylinderGeometry(0.370, 0.370, 0.88, 22);
+    const barrel    = new THREE.Mesh(barrelGeo, alloyMat);
     barrel.rotation.z = Math.PI / 2;
-    barrel.position.x = cfg.side * 0.45;
-    barrel.userData = { compKey: 'cht' };
+    barrel.position.x  = cfg.side * 0.44;
+    barrel.userData    = { compKey: 'cht' };
     cylGroup.add(barrel);
+    crankcaseMeshes.push(barrel);
     interactiveMeshes.push(barrel);
 
-    for (let f = 0.1; f <= 0.85; f += 0.08) {
-      const finGeo = new THREE.CylinderGeometry(0.48, 0.48, 0.02, 20);
-      const fin = new THREE.Mesh(finGeo, finMat);
-      fin.rotation.z = Math.PI / 2;
-      fin.position.x = cfg.side * f;
+    // ── Deep cooling fins (12 fins per cylinder) ──
+    for (let f = 0; f < 12; f++) {
+      const t      = f / 11;
+      const finR   = 0.46 + Math.sin(t * Math.PI) * 0.04;
+      const finGeo = new THREE.CylinderGeometry(finR, finR, 0.022, 22);
+      const fin    = new THREE.Mesh(finGeo, finMat);
+      fin.rotation.z  = Math.PI / 2;
+      fin.position.x  = cfg.side * (0.06 + t * 0.82);
       cylGroup.add(fin);
+      crankcaseMeshes.push(fin);
     }
 
-    const headGeo = new THREE.BoxGeometry(0.3, 0.72, 0.72);
+    // ── Cylinder head ──
+    const headGeo = new THREE.BoxGeometry(0.28, 0.72, 0.74);
     const headMat = new THREE.MeshStandardMaterial({
-      color: 0x3E4E5E,
-      metalness: 0.8,
-      roughness: 0.3,
-      emissive: 0x00D2FF,
-      emissiveIntensity: 0.1
+      color: 0x3A4D5E, metalness: 0.82, roughness: 0.28,
+      emissive: 0x00D2FF, emissiveIntensity: 0.10
     });
     const head = new THREE.Mesh(headGeo, headMat);
-    head.position.x = cfg.side * 0.98;
-    head.userData = { compKey: 'cht' };
+    head.position.x = cfg.side * 1.00;
+    head.userData   = { compKey: 'cht' };
     cylGroup.add(head);
     cylinderHeads.push(head);
+    crankcaseMeshes.push(head);
     interactiveMeshes.push(head);
 
-    const plugGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.25, 12);
-    const plug = new THREE.Mesh(plugGeo, goldBrassMat);
-    plug.position.set(cfg.side * 1.05, 0.38, 0);
-    plug.userData = { compKey: 'cht' };
-    cylGroup.add(plug);
-    interactiveMeshes.push(plug);
+    // Head cooling fins
+    for (let hf = 0; hf < 6; hf++) {
+      const hFinGeo = new THREE.BoxGeometry(0.06, 0.74 + hf * 0.02, 0.016);
+      const hFin    = new THREE.Mesh(hFinGeo, finMat);
+      hFin.position.set(cfg.side * 1.02, 0, -0.30 + hf * 0.12);
+      cylGroup.add(hFin);
+      crankcaseMeshes.push(hFin);
+    }
 
-    const wireGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.8, 8);
-    const wireMat = new THREE.MeshBasicMaterial({ color: 0xEF4444 });
-    const wire = new THREE.Mesh(wireGeo, wireMat);
-    wire.position.set(cfg.side * 0.7, 0.45, 0);
-    wire.rotation.z = -cfg.side * 0.5;
-    cylGroup.add(wire);
+    // ── Valve cover (top of head) ──
+    const vcGeo   = new THREE.BoxGeometry(0.12, 0.66, 0.66);
+    const vCover  = new THREE.Mesh(vcGeo, alloyMat);
+    vCover.position.x = cfg.side * 1.10;
+    vCover.userData   = { compKey: 'cht' };
+    cylGroup.add(vCover);
+    crankcaseMeshes.push(vCover);
 
-    const pistonGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.35, 16);
-    const piston = new THREE.Mesh(pistonGeo, chromeMat);
+    // ── Spark plugs (2 per cylinder: top and side) ──
+    const plugPositions = [
+      { y: 0.38, z: 0.12 },
+      { y: 0.38, z: -0.12 }
+    ];
+    plugPositions.forEach(pp => {
+      const plugGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.22, 12);
+      const plug    = new THREE.Mesh(plugGeo, brassMat);
+      plug.position.set(cfg.side * 1.04, pp.y, pp.z);
+      plug.userData = { compKey: 'cht' };
+      cylGroup.add(plug);
+      interactiveMeshes.push(plug);
+
+      // Ignition wire
+      const wireGeo = new THREE.CylinderGeometry(0.020, 0.020, 0.70, 8);
+      const wire    = new THREE.Mesh(wireGeo, new THREE.MeshBasicMaterial({ color: 0xFF2222 }));
+      wire.position.set(cfg.side * 0.72, 0.48, pp.z);
+      wire.rotation.z = -cfg.side * 0.45;
+      cylGroup.add(wire);
+    });
+
+    // ── Intake valve stub ──
+    const intakeValveGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.18, 10);
+    const intakeValve    = new THREE.Mesh(intakeValveGeo, steelMat);
+    intakeValve.position.set(cfg.side * 1.06, -0.18, 0.18);
+    intakeValve.rotation.z = Math.PI / 2;
+    intakeValve.userData   = { compKey: 'fuel' };
+    cylGroup.add(intakeValve);
+
+    // ── Exhaust valve stub ──
+    const exhaustValveGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.18, 10);
+    const exhaustValve    = new THREE.Mesh(exhaustValveGeo, steelMat);
+    exhaustValve.position.set(cfg.side * 1.06, -0.18, -0.18);
+    exhaustValve.rotation.z = Math.PI / 2;
+    exhaustValve.userData   = { compKey: 'egt' };
+    cylGroup.add(exhaustValve);
+
+    // ── Piston (inside barrel, visible in sectional) ──
+    const pistonGeo = new THREE.CylinderGeometry(0.345, 0.345, 0.30, 18);
+    const piston    = new THREE.Mesh(pistonGeo, chromeMat);
     piston.rotation.z = Math.PI / 2;
-    piston.position.x = cfg.side * 0.45;
+    piston.position.x = cfg.side * 0.44;
+    piston.userData   = { compKey: 'cht' };
     cylGroup.add(piston);
-    pistons.push({ mesh: piston, side: cfg.side, basePos: cfg.side * 0.45, phase: cfg.id * Math.PI * 0.5 });
+    pistons.push({ mesh: piston, side: cfg.side, basePos: cfg.side * 0.44, phase: cfg.id * Math.PI * 0.5 });
 
-    cylGroup.userData = { defaultX: cylGroup.position.x, side: cfg.side };
-    engineGroup.add(cylGroup);
+    // Piston rings (2)
+    [0.06, -0.06].forEach(rOff => {
+      const ringGeo = new THREE.TorusGeometry(0.345, 0.015, 8, 20);
+      const ring    = new THREE.Mesh(ringGeo, steelMat);
+      ring.rotation.y = Math.PI / 2;
+      ring.position.x = cfg.side * 0.44 + rOff;
+      cylGroup.add(ring);
+    });
+
+    // ── Wrist pin ──
+    const wristGeo = new THREE.CylinderGeometry(0.030, 0.030, 0.56, 10);
+    const wristPin = new THREE.Mesh(wristGeo, steelMat);
+    wristPin.position.set(cfg.side * 0.44, 0, 0);
+    cylGroup.add(wristPin);
+
+    // ── Connecting rod ──
+    const conRodCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(cfg.side * 0.46, 0, 0),
+      new THREE.Vector3(cfg.side * 0.24, -0.14, 0),
+      new THREE.Vector3(0, -0.14, 0)
+    ]);
+    const conRodGeo = new THREE.TubeGeometry(conRodCurve, 16, 0.030, 8, false);
+    const conRod    = new THREE.Mesh(conRodGeo, steelMat);
+    conRod.userData = { compKey: 'vib' };
+    cylGroup.add(conRod);
+
+    // ── Fuel injector ──
+    const injGeo  = new THREE.CylinderGeometry(0.028, 0.028, 0.28, 10);
+    const injMesh = new THREE.Mesh(injGeo, brassMat);
+    injMesh.position.set(cfg.side * 0.86, 0.32, 0.24);
+    injMesh.userData = { compKey: 'fuel' };
+    cylGroup.add(injMesh);
+    interactiveMeshes.push(injMesh);
+
+    bank.add(cylGroup);
   });
 
-  // Exhaust & Turbo
-  const pipeCurveLeft = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.9, -0.2, 0.55),
-    new THREE.Vector3(-1.05, -0.6, 0.1),
-    new THREE.Vector3(-0.8, -0.7, -0.6),
-    new THREE.Vector3(0, -0.7, -1.3)
-  ]);
-  const pipeGeoLeft = new THREE.TubeGeometry(pipeCurveLeft, 30, 0.09, 12, false);
-  const pipeLeft = new THREE.Mesh(pipeGeoLeft, exhaustMat);
-  pipeLeft.userData = { compKey: 'egt' };
-  engineGroup.add(pipeLeft);
-  exhaustPipes.push(pipeLeft);
-  interactiveMeshes.push(pipeLeft);
+  // ── Intake Manifold Assembly ─────────────────────────────────────────────────
+  intakeAssembly = new THREE.Group();
+  engineGroup.add(intakeAssembly);
+  intakeAssembly.userData = { defaultY: 0 };
 
-  const pipeCurveRight = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.9, -0.2, 0.55),
-    new THREE.Vector3(1.05, -0.6, 0.1),
-    new THREE.Vector3(0.8, -0.7, -0.6),
-    new THREE.Vector3(0, -0.7, -1.3)
-  ]);
-  const pipeGeoRight = new THREE.TubeGeometry(pipeCurveRight, 30, 0.09, 12, false);
-  const pipeRight = new THREE.Mesh(pipeGeoRight, exhaustMat);
-  pipeRight.userData = { compKey: 'egt' };
-  engineGroup.add(pipeRight);
-  exhaustPipes.push(pipeRight);
-  interactiveMeshes.push(pipeRight);
+  // Air filter / throttle body box on top
+  const airBoxGeo  = new THREE.BoxGeometry(1.30, 0.38, 0.70);
+  const airBox     = new THREE.Mesh(airBoxGeo, plasticBlack);
+  airBox.position.set(0, 0.82, 0.20);
+  airBox.userData  = { compKey: 'fuel' };
+  intakeAssembly.add(airBox);
+  intakeMeshes.push(airBox);
+  interactiveMeshes.push(airBox);
 
-  const turboGeo = new THREE.TorusGeometry(0.35, 0.16, 16, 24);
-  const turbo = new THREE.Mesh(turboGeo, goldBrassMat);
-  turbo.position.set(0, -0.65, -1.4);
-  turbo.userData = { compKey: 'egt' };
-  engineGroup.add(turbo);
+  // Throttle body
+  const tBodyGeo   = new THREE.CylinderGeometry(0.14, 0.14, 0.30, 16);
+  const tBody      = new THREE.Mesh(tBodyGeo, alloyMat);
+  tBody.position.set(0, 0.72, 0.52);
+  tBody.userData   = { compKey: 'fuel' };
+  intakeAssembly.add(tBody);
+  intakeMeshes.push(tBody);
+
+  // ECU/Ignition module
+  const ecuGeo  = new THREE.BoxGeometry(0.42, 0.22, 0.30);
+  const ecus    = new THREE.Mesh(ecuGeo, plasticBlack);
+  ecus.position.set(0.52, 0.86, -0.35);
+  intakeAssembly.add(ecus);
+  intakeMeshes.push(ecus);
+
+  // Intake runners to each cylinder (left bank)
+  [0.60, -0.60].forEach(zCfg => {
+    const runnerCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 0.70, zCfg),
+      new THREE.Vector3(-0.50, 0.50, zCfg),
+      new THREE.Vector3(-0.80, 0.10, zCfg)
+    ]);
+    const runnerGeo = new THREE.TubeGeometry(runnerCurve, 20, 0.055, 10, false);
+    const runner    = new THREE.Mesh(runnerGeo, alloyMat);
+    runner.userData = { compKey: 'fuel' };
+    intakeAssembly.add(runner);
+    intakeMeshes.push(runner);
+    interactiveMeshes.push(runner);
+  });
+  // Right bank
+  [0.60, -0.60].forEach(zCfg => {
+    const runnerCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 0.70, zCfg),
+      new THREE.Vector3(0.50, 0.50, zCfg),
+      new THREE.Vector3(0.80, 0.10, zCfg)
+    ]);
+    const runnerGeo = new THREE.TubeGeometry(runnerCurve, 20, 0.055, 10, false);
+    const runner    = new THREE.Mesh(runnerGeo, alloyMat);
+    runner.userData = { compKey: 'fuel' };
+    intakeAssembly.add(runner);
+    intakeMeshes.push(runner);
+    interactiveMeshes.push(runner);
+  });
+
+  // Fuel rail – left
+  const fuelRailGeo  = new THREE.CylinderGeometry(0.038, 0.038, 1.72, 12);
+  const fuelRailL    = new THREE.Mesh(fuelRailGeo, fuelRailMat);
+  fuelRailL.position.set(-0.72, 0.32, 0);
+  fuelRailL.rotation.x = Math.PI / 2;
+  fuelRailL.userData    = { compKey: 'fuel' };
+  intakeAssembly.add(fuelRailL);
+  intakeMeshes.push(fuelRailL);
+  interactiveMeshes.push(fuelRailL);
+
+  // Fuel rail – right
+  const fuelRailR = new THREE.Mesh(fuelRailGeo, fuelRailMat);
+  fuelRailR.position.set(0.72, 0.32, 0);
+  fuelRailR.rotation.x = Math.PI / 2;
+  fuelRailR.userData    = { compKey: 'fuel' };
+  intakeAssembly.add(fuelRailR);
+  intakeMeshes.push(fuelRailR);
+  interactiveMeshes.push(fuelRailR);
+
+  // ── Exhaust System ───────────────────────────────────────────────────────────
+  exhaustAssembly = new THREE.Group();
+  engineGroup.add(exhaustAssembly);
+  exhaustAssembly.userData = { defaultZ: 0 };
+
+  // Exhaust runners from each cylinder
+  const exhaustRunnerConfigs = [
+    { start: new THREE.Vector3(-0.9, -0.25, 0.62), end: new THREE.Vector3(-0.75, -0.55, 0) },
+    { start: new THREE.Vector3(0.9, -0.25, 0.62),  end: new THREE.Vector3(0.75, -0.55, 0) },
+    { start: new THREE.Vector3(-0.9, -0.25, -0.62), end: new THREE.Vector3(-0.75, -0.55, 0) },
+    { start: new THREE.Vector3(0.9, -0.25, -0.62),  end: new THREE.Vector3(0.75, -0.55, 0) },
+  ];
+
+  exhaustRunnerConfigs.forEach(rc => {
+    const mid       = new THREE.Vector3().lerpVectors(rc.start, rc.end, 0.5).add(new THREE.Vector3(0, -0.15, 0));
+    const curve     = new THREE.CatmullRomCurve3([rc.start, mid, rc.end]);
+    const rGeo      = new THREE.TubeGeometry(curve, 24, 0.072, 10, false);
+    const rMesh     = new THREE.Mesh(rGeo, exhaustMat);
+    rMesh.userData  = { compKey: 'egt' };
+    exhaustAssembly.add(rMesh);
+    exhaustPipes.push(rMesh);
+    interactiveMeshes.push(rMesh);
+  });
+
+  // Collector pipes (left + right converge to rear)
+  [-0.65, 0.65].forEach(xSide => {
+    const colCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(xSide, -0.55, 0),
+      new THREE.Vector3(xSide * 0.6, -0.65, -0.70),
+      new THREE.Vector3(0, -0.65, -1.25)
+    ]);
+    const colGeo  = new THREE.TubeGeometry(colCurve, 28, 0.090, 10, false);
+    const colMesh = new THREE.Mesh(colGeo, exhaustMat);
+    colMesh.userData = { compKey: 'egt' };
+    exhaustAssembly.add(colMesh);
+    exhaustPipes.push(colMesh);
+    interactiveMeshes.push(colMesh);
+  });
+
+  // Turbocharger / muffler body
+  const turboGeo  = new THREE.TorusGeometry(0.32, 0.15, 16, 24);
+  const turbo     = new THREE.Mesh(turboGeo, brassMat);
+  turbo.position.set(0, -0.62, -1.38);
+  turbo.userData  = { compKey: 'egt' };
+  exhaustAssembly.add(turbo);
+  exhaustPipes.push(turbo);
   interactiveMeshes.push(turbo);
 
-  const tailpipeGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.7, 16);
-  const tailpipe = new THREE.Mesh(tailpipeGeo, exhaustMat);
+  // Turbo compressor housing
+  const compGeo  = new THREE.CylinderGeometry(0.18, 0.22, 0.28, 18);
+  const compHsg  = new THREE.Mesh(compGeo, alloyMat);
+  compHsg.position.set(0.28, -0.48, -1.38);
+  compHsg.userData = { compKey: 'egt' };
+  exhaustAssembly.add(compHsg);
+
+  // Tailpipe
+  const tailGeo  = new THREE.CylinderGeometry(0.11, 0.10, 0.68, 14);
+  const tailpipe = new THREE.Mesh(tailGeo, exhaustMat);
   tailpipe.rotation.x = Math.PI / 2;
-  tailpipe.position.set(0.2, -0.65, -1.8);
+  tailpipe.position.set(0, -0.62, -1.78);
   tailpipe.userData = { compKey: 'egt' };
-  engineGroup.add(tailpipe);
+  exhaustAssembly.add(tailpipe);
   exhaustPipes.push(tailpipe);
   interactiveMeshes.push(tailpipe);
 
-  // Fuel Rails
-  const fuelRailMat = new THREE.MeshStandardMaterial({ color: 0x38BDF8, metalness: 0.9, roughness: 0.2 });
-  const fuelRailGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.8, 12);
-  const fuelRailLeft = new THREE.Mesh(fuelRailGeo, fuelRailMat);
-  fuelRailLeft.position.set(-0.7, 0.35, 0);
-  fuelRailLeft.rotation.x = Math.PI / 2;
-  fuelRailLeft.userData = { compKey: 'fuel' };
-  engineGroup.add(fuelRailLeft);
-  interactiveMeshes.push(fuelRailLeft);
-
-  const fuelRailRight = new THREE.Mesh(fuelRailGeo, fuelRailMat);
-  fuelRailRight.position.set(0.7, 0.35, 0);
-  fuelRailRight.rotation.x = Math.PI / 2;
-  fuelRailRight.userData = { compKey: 'fuel' };
-  engineGroup.add(fuelRailRight);
-  interactiveMeshes.push(fuelRailRight);
-
-  // Oil Filter & Sump
-  const oilFilterGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.5, 16);
-  const oilFilterMat = new THREE.MeshStandardMaterial({ color: 0x1E3A8A, metalness: 0.6, roughness: 0.3 });
-  const oilFilter = new THREE.Mesh(oilFilterGeo, oilFilterMat);
-  oilFilter.position.set(-0.6, -0.4, 0.8);
-  oilFilter.userData = { compKey: 'oil' };
-  engineGroup.add(oilFilter);
-  interactiveMeshes.push(oilFilter);
-
-  const sumpGeo = new THREE.BoxGeometry(1.2, 0.3, 1.6);
-  const sump = new THREE.Mesh(sumpGeo, crankcaseMat);
-  sump.position.set(0, -0.65, 0);
-  sump.userData = { compKey: 'oil' };
-  engineGroup.add(sump);
-  interactiveMeshes.push(sump);
-
-  // Vibration Transducer
-  const vibSensorGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.08, 12);
-  const vibSensorMat = new THREE.MeshStandardMaterial({ color: 0xF59E0B, metalness: 0.9, roughness: 0.2 });
-  const vibSensor = new THREE.Mesh(vibSensorGeo, vibSensorMat);
-  vibSensor.position.set(0.4, 0.58, 0.3);
-  vibSensor.userData = { compKey: 'vib' };
-  engineGroup.add(vibSensor);
-  interactiveMeshes.push(vibSensor);
+  // ── Vibration Transducer Sensors ─────────────────────────────────────────────
+  const vibSensorPositions = [
+    { x:  0.42, y: 0.56, z:  0.30 },
+    { x: -0.42, y: 0.56, z: -0.30 }
+  ];
+  vibSensorPositions.forEach(vp => {
+    const vsGeo  = new THREE.CylinderGeometry(0.065, 0.065, 0.072, 12);
+    const vsMat  = new THREE.MeshStandardMaterial({ color: 0xF59E0B, metalness: 0.90, roughness: 0.20 });
+    const vs     = new THREE.Mesh(vsGeo, vsMat);
+    vs.position.set(vp.x, vp.y, vp.z);
+    vs.userData  = { compKey: 'vib' };
+    crankcaseGroup.add(vs);
+    interactiveMeshes.push(vs);
+  });
 }
+
+
+
+
 
 function onEngineCanvasClick(event) {
   const rect = renderer.domElement.getBoundingClientRect();
@@ -538,24 +814,164 @@ function animateThree() {
   renderer.render(scene, camera);
 }
 
-function toggleExplodedView() {
-  isExploded = !isExploded;
+
+// ── Camera View Controller ────────────────────────────────────────────────────
+const ENGINE_VIEWS = {
+  isometric_fl:  { pos: new THREE.Vector3( 3.8,  2.6,  3.6), tgt: new THREE.Vector3(0, 0.1, 0) },
+  front:         { pos: new THREE.Vector3( 0.0,  0.0,  5.8), tgt: new THREE.Vector3(0, 0.0, 0) },
+  rear:          { pos: new THREE.Vector3( 0.0,  0.0, -5.8), tgt: new THREE.Vector3(0, 0.0, 0) },
+  right_side:    { pos: new THREE.Vector3( 5.2,  0.0,  0.0), tgt: new THREE.Vector3(0, 0.0, 0) },
+  right:         { pos: new THREE.Vector3( 4.0,  1.5,  2.0), tgt: new THREE.Vector3(0, 0.0, 0) },
+  top:           { pos: new THREE.Vector3( 0.0,  6.5,  0.0), tgt: new THREE.Vector3(0, 0.0, 0) },
+  bottom:        { pos: new THREE.Vector3( 0.0, -6.5,  0.0), tgt: new THREE.Vector3(0, 0.0, 0) },
+  isometric_rr:  { pos: new THREE.Vector3(-3.8,  2.6, -3.6), tgt: new THREE.Vector3(0, 0.1, 0) },
+  exploded:      { pos: new THREE.Vector3( 4.5,  3.0,  4.8), tgt: new THREE.Vector3(0, 0.1, 0) },
+  sectional:     { pos: new THREE.Vector3( 0.0,  0.0,  5.5), tgt: new THREE.Vector3(0, 0.0, 0) },
+  airflow:       { pos: new THREE.Vector3( 3.8,  2.2,  3.6), tgt: new THREE.Vector3(0, 0.1, 0) },
+};
+
+function setCameraView(viewKey) {
+  const view = ENGINE_VIEWS[viewKey];
+  if (!view) return;
+
+  // Reset previous special modes
+  if (viewKey !== 'exploded' && isExploded) setExplodedState(false);
+  if (viewKey !== 'sectional' && isSectional) setSectionalState(false);
+  if (viewKey !== 'airflow' && airflowActive) setAirflowState(false);
+
+  smoothMoveCamera(view.pos, view.tgt);
+
+  if (viewKey === 'exploded')  setExplodedState(true);
+  if (viewKey === 'sectional') setSectionalState(true);
+  if (viewKey === 'airflow')   setAirflowState(true);
+}
+
+function setExplodedState(explode) {
+  isExploded = explode;
   const btn = document.getElementById('btnExplodeView');
   if (btn) {
-    btn.innerHTML = isExploded ?
+    btn.innerHTML = explode ?
       '<i class="fa-solid fa-compress"></i> Normal View' :
       '<i class="fa-solid fa-arrows-split-up-and-left"></i> Cutaway View';
   }
 
-  engineGroup.children.forEach(child => {
-    if (child.userData && child.userData.defaultX !== undefined) {
-      const targetX = isExploded ?
-        child.userData.defaultX + (child.userData.side * 0.6) :
-        child.userData.defaultX;
-      child.position.x = targetX;
+  const targets = [
+    { group: leftBank,       from: new THREE.Vector3(0, 0, 0), to: new THREE.Vector3(-1.10, 0.28, 0) },
+    { group: rightBank,      from: new THREE.Vector3(0, 0, 0), to: new THREE.Vector3( 1.10, 0.28, 0) },
+    { group: intakeAssembly, from: new THREE.Vector3(0, 0, 0), to: new THREE.Vector3( 0,    0.75, 0) },
+    { group: exhaustAssembly,from: new THREE.Vector3(0, 0, 0), to: new THREE.Vector3( 0,   -0.55, -0.60) },
+    { group: gearboxGroup,   from: new THREE.Vector3(0, 0.10, 1.35), to: new THREE.Vector3(0, 0.10, 2.20) },
+    { group: propellerGroup, from: new THREE.Vector3(0, 0.10, 1.96), to: new THREE.Vector3(0, 0.10, 3.10) },
+  ];
+
+  targets.forEach(t => {
+    if (!t.group) return;
+    const startPos = t.group.position.clone();
+    const endPos   = explode ? t.from.clone().add(t.to) : (t.group === gearboxGroup ? new THREE.Vector3(0, 0.10, 1.35) : t.group === propellerGroup ? new THREE.Vector3(0, 0.10, 1.96) : new THREE.Vector3(0, 0, 0));
+    let progress = 0;
+    function step() {
+      progress += 0.04;
+      t.group.position.lerpVectors(startPos, endPos, Math.min(progress, 1));
+      if (progress < 1) requestAnimationFrame(step);
     }
+    step();
   });
 }
+
+function setSectionalState(on) {
+  isSectional = on;
+  crankcaseMeshes.forEach(m => {
+    if (!m.material) return;
+    if (!(m.material instanceof THREE.MeshStandardMaterial)) return;
+    m.material = m.material.clone();
+    m.material.transparent = on;
+    m.material.opacity     = on ? 0.18 : 1.0;
+    m.material.depthWrite  = !on;
+  });
+  intakeMeshes.forEach(m => {
+    if (!m.material) return;
+    m.material = m.material.clone();
+    m.material.transparent = on;
+    m.material.opacity     = on ? 0.22 : 1.0;
+    m.material.depthWrite  = !on;
+  });
+}
+
+function setAirflowState(on) {
+  airflowActive = on;
+  let canvas = document.getElementById('airflowCanvas');
+  const container = document.getElementById('threeEngineContainer');
+  if (!canvas && on) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'airflowCanvas';
+    container.style.position = 'relative';
+    container.appendChild(canvas);
+  }
+  if (!canvas) return;
+  canvas.width  = container.clientWidth;
+  canvas.height = container.clientHeight;
+  canvas.classList.toggle('visible', on);
+
+  if (!on) {
+    if (airflowParticles) cancelAnimationFrame(airflowParticles);
+    airflowParticles = null;
+    return;
+  }
+
+  const ctx    = canvas.getContext('2d');
+  // Intake particles (blue) and exhaust particles (orange)
+  const intakeP   = Array.from({ length: 32 }, (_, i) => ({ t: i / 32, speed: 0.004 + Math.random() * 0.003, w: canvas.width, h: canvas.height }));
+  const exhaustP  = Array.from({ length: 32 }, (_, i) => ({ t: i / 32, speed: 0.003 + Math.random() * 0.003, w: canvas.width, h: canvas.height }));
+
+  function drawAirflow() {
+    if (!airflowActive) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const W = canvas.width, H = canvas.height;
+
+    // Intake flow path (top → left cylinders)
+    intakeP.forEach(p => {
+      p.t += p.speed;
+      if (p.t > 1) p.t -= 1;
+      const x = W * 0.50 - p.t * W * 0.26;
+      const y = H * 0.18 + p.t * H * 0.44;
+      const alpha = 0.7 - p.t * 0.4;
+      const r = 3 - p.t * 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(56,189,248,${alpha})`;
+      ctx.fill();
+    });
+
+    // Exhaust flow path (right cylinders → rear lower)
+    exhaustP.forEach(p => {
+      p.t += p.speed;
+      if (p.t > 1) p.t -= 1;
+      const x = W * 0.62 + p.t * W * 0.12;
+      const y = H * 0.58 + p.t * H * 0.28;
+      const alpha = 0.8 - p.t * 0.5;
+      const r = 4 - p.t * 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(251,146,60,${alpha})`;
+      ctx.fill();
+    });
+
+    // Legend
+    ctx.font = '11px JetBrains Mono, monospace';
+    ctx.fillStyle = 'rgba(56,189,248,0.9)';
+    ctx.fillText('● Intake Airflow', 14, H - 28);
+    ctx.fillStyle = 'rgba(251,146,60,0.9)';
+    ctx.fillText('● Exhaust Flow',   14, H - 12);
+
+    airflowParticles = requestAnimationFrame(drawAirflow);
+  }
+  drawAirflow();
+}
+
+function toggleExplodedView() {
+  setExplodedState(!isExploded);
+}
+
 
 function updateEngineThermalGlow(cht, egt) {
   if (!isThermalEnabled) {
@@ -1008,212 +1424,614 @@ function updateCycle(index) {
 }
 
 // ==========================================================================
-// 6. SIMULATOR LAB LOGIC (DATASETS, PRESETS, INDEPENDENT EXECUTION)
+// 6. SIMULATOR LAB LOGIC — DYNAMIC DATASET-DRIVEN MISSION SIMULATOR
 // ==========================================================================
-function initSimulatorLab() {
-  // Preset buttons
-  document.querySelectorAll('.preset-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeSimulatorPreset = btn.dataset.preset;
+let ALL_SYNTHETIC_DATA = [];
+let SYNTHETIC_UNITS = {};         // { uid: [rows…] }
+let SYNTHETIC_SCENARIOS = {};     // { fault_name: [uid, uid, …] }
+let ACTIVE_UNIT_DATA = [];
+let liveMissionActive = false;
+let liveMissionTimer = null;
+let liveCycleCount = 0;
+let liveTargetFault = null;
+let lastPhaseLabel = '';
+let hasLoggedFaultTimeline = false;
+
+function getFaultComponentDetails(faultName) {
+  const map = {
+    'spark_plug_fouling': { component: 'Cylinder Spark Plugs (Cyl 1-4)', key: 'cht' },
+    'exhaust_valve_leak': { component: 'Exhaust Valves & Exhaust Manifold', key: 'egt' },
+    'cooling_airflow_blockage': { component: 'Cylinder Heads & Air Baffles', key: 'cht' },
+    'fuel_injector_clog': { component: 'Fuel Injectors & Fuel Rail', key: 'fuel' },
+    'oil_starvation': { component: 'Oil Sump, Pump & Lubrication Loop', key: 'oil' },
+    'bearing_wear': { component: 'Crankshaft Bearings & Crankcase', key: 'vib' },
+    'fuel_pump_degradation': { component: 'Mechanical Fuel Pump & Supply Lines', key: 'fuel' },
+    'healthy': { component: 'All Subsystems Operating Nominally', key: 'rpm' }
+  };
+  return map[faultName] || { component: 'Engine Subsystem', key: 'rpm' };
+}
+
+function formatFaultLabel(name) {
+  if (name === 'healthy') return '✅ Normal (Healthy Baseline)';
+  return '⚠️ ' + name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+async function loadSyntheticDataset() {
+  const statusEl = document.getElementById('simDatasetStatus');
+  try {
+    const res = await fetch('/data/synthetic_train.csv');
+    if (!res.ok) throw new Error("Could not fetch synthetic_train.csv");
+    const text = await res.text();
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+
+    let parsed = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(',');
+      if (vals.length !== headers.length) continue;
+      let row = {};
+      headers.forEach((h, idx) => {
+        let v = vals[idx].trim();
+        row[h] = isNaN(v) ? v : parseFloat(v);
+      });
+      parsed.push(row);
+    }
+    ALL_SYNTHETIC_DATA = parsed;
+
+    // Group rows by unit_number
+    SYNTHETIC_UNITS = {};
+    parsed.forEach(row => {
+      const uid = parseInt(row.unit_number, 10);
+      if (!SYNTHETIC_UNITS[uid]) SYNTHETIC_UNITS[uid] = [];
+      SYNTHETIC_UNITS[uid].push(row);
     });
+
+    // Build scenario index: for each unique fault_name, collect unit_numbers
+    SYNTHETIC_SCENARIOS = {};
+    Object.keys(SYNTHETIC_UNITS).forEach(uid => {
+      const uidNum = parseInt(uid, 10);
+      const rows = SYNTHETIC_UNITS[uidNum];
+      const faultRows = rows.filter(r => r.fault_name && r.fault_name !== 'healthy');
+      let label = 'healthy';
+      if (faultRows.length > 0) {
+        const counts = {};
+        faultRows.forEach(r => { counts[r.fault_name] = (counts[r.fault_name] || 0) + 1; });
+        label = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+      }
+      if (!SYNTHETIC_SCENARIOS[label]) SYNTHETIC_SCENARIOS[label] = [];
+      SYNTHETIC_SCENARIOS[label].push(uidNum);
+    });
+
+    if (statusEl) {
+      statusEl.textContent = `${parsed.length.toLocaleString()} rows • ${Object.keys(SYNTHETIC_UNITS).length} runs`;
+      statusEl.style.color = '#10B981';
+    }
+
+    populateScenarioDropdown();
+  } catch (err) {
+    console.error("Failed to load synthetic dataset", err);
+    if (statusEl) {
+      statusEl.textContent = 'Dataset Offline';
+      statusEl.style.color = '#EF4444';
+    }
+  }
+}
+
+function populateScenarioDropdown() {
+  const sel = document.getElementById('simScenarioSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
+
+  // Sort scenarios with "healthy" first
+  const sorted = Object.keys(SYNTHETIC_SCENARIOS).sort((a, b) => {
+    if (a === 'healthy') return -1;
+    if (b === 'healthy') return 1;
+    return a.localeCompare(b);
   });
+
+  sorted.forEach(name => {
+    const count = SYNTHETIC_SCENARIOS[name].length;
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = `${formatFaultLabel(name)} (${count} ${count === 1 ? 'trajectory' : 'trajectories'})`;
+    sel.appendChild(opt);
+  });
+
+  sel.value = 'healthy';
+  updateTrajectoryDropdown('healthy');
+  updateScenarioInfo('healthy');
+
+  sel.addEventListener('change', () => {
+    updateTrajectoryDropdown(sel.value);
+    updateScenarioInfo(sel.value);
+  });
+}
+
+function updateTrajectoryDropdown(scenario) {
+  const trajSel = document.getElementById('simTrajectorySelect');
+  if (!trajSel) return;
+  trajSel.innerHTML = '<option value="random">🎲 Random Valid Trajectory (Auto)</option>';
+
+  const uids = SYNTHETIC_SCENARIOS[scenario] || [];
+  uids.forEach(uid => {
+    const rows = SYNTHETIC_UNITS[uid] || [];
+    const opt = document.createElement('option');
+    opt.value = uid;
+    opt.textContent = `Unit #${uid} (${rows.length} cycles)`;
+    trajSel.appendChild(opt);
+  });
+}
+
+function updateScenarioInfo(scenario) {
+  const info = document.getElementById('scenarioInfo');
+  if (!info) return;
+  const uids = SYNTHETIC_SCENARIOS[scenario] || [];
+  if (uids.length === 0) {
+    info.textContent = 'No trajectories available for this condition.';
+    return;
+  }
+  const sampleUid = uids[0];
+  const sampleLen = SYNTHETIC_UNITS[sampleUid].length;
+  const compInfo = getFaultComponentDetails(scenario);
+
+  info.innerHTML = `
+    <strong>${uids.length}</strong> matching trajectories detected in synthetic dataset &bull;
+    Sample duration: <strong>${sampleLen} cycles</strong> &bull;
+    Target Component: <span style="color:#00D2FF;font-weight:600;">${compInfo.component}</span>
+  `;
+}
+
+function addTimelineNode(phase, cycle, color = '#4fc3e8', faultInfo = null, telemetrySummary = null) {
+  const container = document.getElementById('missionTimeline');
+  if (!container) return;
+
+  const node = document.createElement('div');
+  node.className = 'timeline-node';
+  node.style.borderLeftColor = color;
+
+  let faultHtml = '';
+  if (faultInfo) {
+    faultHtml = `
+      <div class="timeline-fault-alert">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span><strong>${faultInfo.name.replace(/_/g, ' ').toUpperCase()}</strong> &bull; Component: <span class="comp-tag">${faultInfo.component}</span> &bull; Confidence: <strong>${(faultInfo.confidence * 100).toFixed(0)}%</strong></span>
+      </div>
+    `;
+  }
+
+  let teleHtml = '';
+  if (telemetrySummary) {
+    teleHtml = `
+      <div class="timeline-metrics-summary">
+        <span>RPM: ${telemetrySummary.rpm}</span>
+        <span>CHT: ${telemetrySummary.cht}°C</span>
+        <span>EGT: ${telemetrySummary.egt}°C</span>
+        <span>Oil: ${telemetrySummary.oil} bar</span>
+        <span>Alt: ${telemetrySummary.alt}m</span>
+      </div>
+    `;
+  }
+
+  node.innerHTML = `
+    <div class="timeline-node-header">
+      <span class="timeline-phase-tag" style="background:${color}22; color:${color}; border:1px solid ${color}44;">
+        <i class="fa-solid fa-location-dot"></i> ${phase}
+      </span>
+      <span class="timeline-cycle-tag">Cycle #${cycle}</span>
+    </div>
+    ${faultHtml}
+    ${teleHtml}
+  `;
+
+  container.appendChild(node);
+  container.scrollTop = container.scrollHeight;
+}
+
+function initSimulatorLab() {
+  loadSyntheticDataset();
 
   // Run Lab Simulation Button
   document.getElementById('btnRunLabSim')?.addEventListener('click', runLabSimulation);
+  document.getElementById('btnStopLabSim')?.addEventListener('click', stopLabSimulation);
 
   // Transfer Lab Run to Main 3D Twin
   document.getElementById('btnTransferToTwin')?.addEventListener('click', () => {
-    if (LAB_SIMULATION_DATA.length) {
-      renderTelemetryData(LAB_SIMULATION_DATA);
+    if (TELEMETRY_DATA.length) {
+      renderTelemetryData(TELEMETRY_DATA);
       navigateToPage('twin-engine');
     } else {
       alert('Run a simulation first.');
     }
   });
 
-  // File Uploader Setup
-  const dropZone = document.getElementById('datasetDropZone');
-  const fileInput = document.getElementById('datasetFileInput');
-  const fileInfo = document.getElementById('uploadFileInfo');
+  document.getElementById('btnTransferFinalToTwin')?.addEventListener('click', () => {
+    if (TELEMETRY_DATA.length) {
+      renderTelemetryData(TELEMETRY_DATA);
+      navigateToPage('twin-engine');
+    }
+  });
+}
 
-  if (dropZone && fileInput) {
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.style.borderColor = '#00D2FF';
-    });
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.style.borderColor = '#1E3B56';
-    });
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.style.borderColor = '#1E3B56';
-      if (e.dataTransfer.files.length) {
-        handleUploadedFile(e.dataTransfer.files[0]);
-      }
-    });
+function stopLabSimulation() {
+  if (liveMissionActive) {
+    clearInterval(liveMissionTimer);
+    liveMissionTimer = null;
+    liveMissionActive = false;
+    isPlaying = false;
 
-    fileInput.addEventListener('change', () => {
-      if (fileInput.files.length) {
-        handleUploadedFile(fileInput.files[0]);
-      }
-    });
+    const btn = document.getElementById('btnRunLabSim');
+    const stopBtn = document.getElementById('btnStopLabSim');
+    const runBtn = document.getElementById('runBtn');
+    if (btn) btn.disabled = false;
+    if (stopBtn) stopBtn.style.display = 'none';
+    if (runBtn) runBtn.disabled = false;
+
+    const phaseSpan = document.getElementById('currentMissionPhase');
+    if (phaseSpan) phaseSpan.textContent = 'PAUSED';
+    const phaseBadge = document.getElementById('simPhaseBadge');
+    if (phaseBadge) {
+      phaseBadge.textContent = 'PAUSED';
+      phaseBadge.style.color = '#F59E0B';
+      phaseBadge.style.borderColor = '#F59E0B';
+    }
   }
 }
 
-function handleUploadedFile(file) {
-  const fileInfo = document.getElementById('uploadFileInfo');
-  if (!fileInfo) return;
-  fileInfo.style.display = 'block';
-  fileInfo.innerHTML = `Loaded: <strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const text = e.target.result;
-    const lines = text.trim().split('\n');
-    fileInfo.innerHTML = `Loaded: <strong>${file.name}</strong> &bull; Detected ${lines.length - 1} flight telemetry cycles &bull; Ready to Simulate`;
-  };
-  reader.readAsText(file);
-}
-
-let liveMissionActive = false;
-let liveMissionTimer = null;
-let liveCycleCount = 0;
-let liveFaultSeverity = 0;
-let liveTargetFault = null;
-
 async function runLabSimulation() {
-  const faultName = activeSimulatorPreset === 'healthy' ? null : activeSimulatorPreset;
-  startLiveMission(faultName);
+  const sel = document.getElementById('simScenarioSelect');
+  const trajSel = document.getElementById('simTrajectorySelect');
+  const scenario = sel ? sel.value : 'healthy';
+  const selectedUid = trajSel ? trajSel.value : 'random';
+  startLiveMission(scenario, selectedUid);
 }
 
 async function simulateNewMission() {
-  const faultName = document.getElementById('faultSelect').value || null;
-  startLiveMission(faultName);
+  const faultName = document.getElementById('faultSelect')?.value || null;
+  startLiveMission(faultName || 'healthy', 'random');
 }
 
-function startLiveMission(faultName) {
+function startLiveMission(scenario, specificUid = 'random') {
+  if (!ALL_SYNTHETIC_DATA.length) {
+    alert("Dataset is still loading. Please try again in a moment.");
+    return;
+  }
+
+  const uids = SYNTHETIC_SCENARIOS[scenario];
+  if (!uids || uids.length === 0) {
+    alert(`No synthetic trajectories found for scenario: ${scenario}`);
+    return;
+  }
+
+  let selectedUid;
+  if (specificUid && specificUid !== 'random') {
+    selectedUid = parseInt(specificUid, 10);
+  } else {
+    selectedUid = uids[Math.floor(Math.random() * uids.length)];
+  }
+
+  ACTIVE_UNIT_DATA = SYNTHETIC_UNITS[selectedUid] || SYNTHETIC_UNITS[uids[0]];
+
   const btn = document.getElementById('runBtn');
   const btnLab = document.getElementById('btnRunLabSim');
+  const stopBtn = document.getElementById('btnStopLabSim');
   const status = document.getElementById('runStatus');
   const summary = document.getElementById('simResultSummary');
   const playBtn = document.getElementById('playBtn');
-  
+  const finalSummaryDiv = document.getElementById('missionFinalSummary');
+  const timelineDiv = document.getElementById('missionTimeline');
+  const phaseSpan = document.getElementById('currentMissionPhase');
+  const phaseBadge = document.getElementById('simPhaseBadge');
+
   if (liveMissionActive) {
     clearInterval(liveMissionTimer);
   }
-  
+
   TELEMETRY_DATA = [];
   liveCycleCount = 0;
-  liveFaultSeverity = 0;
-  liveTargetFault = faultName || 'healthy';
+  liveTargetFault = scenario;
   liveMissionActive = true;
-  isPlaying = true; 
+  isPlaying = true;
+  lastPhaseLabel = '';
+  hasLoggedFaultTimeline = false;
+
+  // Clear charts
+  if (CHARTS.simTemp) {
+    CHARTS.simTemp.data.labels = [];
+    CHARTS.simTemp.data.datasets.forEach(ds => ds.data = []);
+    CHARTS.simTemp.update();
+  }
+  if (CHARTS.simMech) {
+    CHARTS.simMech.data.labels = [];
+    CHARTS.simMech.data.datasets.forEach(ds => ds.data = []);
+    CHARTS.simMech.update();
+  }
+
+  if (finalSummaryDiv) finalSummaryDiv.style.display = 'none';
+  if (timelineDiv) timelineDiv.innerHTML = '';
+  if (phaseSpan) phaseSpan.textContent = 'TAKEOFF';
+  if (phaseBadge) {
+    phaseBadge.textContent = 'TAKEOFF';
+    phaseBadge.style.color = '#00D2FF';
+    phaseBadge.style.borderColor = 'rgba(0, 210, 255, 0.4)';
+  }
 
   if (btn) btn.disabled = true;
   if (btnLab) btnLab.disabled = true;
-  const missionTitle = liveTargetFault.replace(/_/g, ' ').toUpperCase();
-  if (status) status.textContent = `Live Mission Streaming • ${missionTitle}`;
-  if (summary) summary.textContent = `Live Mission Streaming • ${missionTitle}`;
+  if (stopBtn) stopBtn.style.display = 'inline-flex';
+
+  const missionTitle = formatFaultLabel(scenario) + ` &bull; Unit #${selectedUid} (${ACTIVE_UNIT_DATA.length} cycles)`;
+  if (status) status.innerHTML = `Replaying: ${missionTitle}`;
+  if (summary) summary.innerHTML = `Live Mission Streaming &bull; ${missionTitle}`;
   if (playBtn) playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
 
   setConnectionStatus(true);
-  
-  const speedMultiplier = parseInt(document.getElementById('speedSelect')?.value || '4', 10);
-  const intervalMs = Math.max(100, 1000 / speedMultiplier);
-  
+
+  // Speed selection
+  const speedVal = parseInt(document.getElementById('simSpeedSelect')?.value || document.getElementById('speedSelect')?.value || '4', 10);
+  const intervalMs = Math.max(50, 1000 / speedVal);
+
   liveMissionTimer = setInterval(liveMissionTick, intervalMs);
 }
 
+function getMissionPhase(cycleIdx, totalCycles, altitudeM, throttlePct) {
+  const pct = cycleIdx / totalCycles;
+  if (pct <= 0.03 || cycleIdx <= 2) return 'TAKEOFF';
+  if (pct <= 0.12) return 'CLIMB';
+  if (pct > 0.90) return 'DESCENT';
+  if (altitudeM !== undefined && Math.abs(altitudeM - 4500) > 200) return 'HIGH-LOAD / ALTITUDE VARIATION';
+  if (throttlePct !== undefined && throttlePct > 80) return 'HIGH-LOAD / ALTITUDE VARIATION';
+  return 'CRUISE';
+}
+
 async function liveMissionTick() {
+  if (liveCycleCount >= ACTIVE_UNIT_DATA.length) {
+    clearInterval(liveMissionTimer);
+    liveMissionActive = false;
+    isPlaying = false;
+
+    // Final phase marker
+    const phaseSpan = document.getElementById('currentMissionPhase');
+    if (phaseSpan) phaseSpan.textContent = 'MISSION COMPLETE';
+    const phaseBadge = document.getElementById('simPhaseBadge');
+    if (phaseBadge) {
+      phaseBadge.textContent = 'MISSION COMPLETE';
+      phaseBadge.style.color = '#10B981';
+      phaseBadge.style.borderColor = '#10B981';
+    }
+
+    addTimelineNode('MISSION COMPLETE', liveCycleCount, '#10B981', null, {
+      rpm: Math.round(TELEMETRY_DATA[TELEMETRY_DATA.length - 1]?.rpm || 2000),
+      cht: Math.round(TELEMETRY_DATA[TELEMETRY_DATA.length - 1]?.cht_1_c || 95),
+      egt: Math.round(TELEMETRY_DATA[TELEMETRY_DATA.length - 1]?.egt_1_c || 600),
+      oil: (TELEMETRY_DATA[TELEMETRY_DATA.length - 1]?.oil_pressure_kpa / 27.5).toFixed(1),
+      alt: Math.round(TELEMETRY_DATA[TELEMETRY_DATA.length - 1]?.mission_altitude_m || 0)
+    });
+
+    const status = document.getElementById('runStatus');
+    if (status) status.textContent = "Mission Completed";
+    const summary = document.getElementById('simResultSummary');
+    if (summary) summary.innerHTML = `<span style="color:#10B981;font-weight:bold;">Mission Complete (${ACTIVE_UNIT_DATA.length} cycles)</span>`;
+
+    // Build Final Summary from the last telemetry point
+    const finalSummaryDiv = document.getElementById('missionFinalSummary');
+    if (finalSummaryDiv && TELEMETRY_DATA.length > 0) {
+      finalSummaryDiv.style.display = 'block';
+      const last = TELEMETRY_DATA[TELEMETRY_DATA.length - 1];
+      const health = last.mission_reliability_pct ?? 100;
+      const faultName = last.predicted_fault_name || 'healthy';
+      const rul = last.predicted_RUL ?? 125;
+      const conf = last.fault_confidence ?? 0;
+      const compInfo = getFaultComponentDetails(faultName);
+
+      document.getElementById('summaryHealthVal').textContent = health.toFixed(1) + '%';
+      document.getElementById('summaryFaultVal').textContent =
+        faultName !== 'healthy'
+          ? faultName.replace(/_/g, ' ').toUpperCase() + ` (${(conf * 100).toFixed(0)}% conf)`
+          : 'NOMINAL (NONE)';
+      document.getElementById('summaryCompVal').textContent = `Affected Component: ${compInfo.component}`;
+      document.getElementById('summaryRulVal').textContent = `${rul.toFixed(1)} cycles`;
+      document.getElementById('summaryRulHrsVal').textContent = `${(rul * 0.3).toFixed(1)} hrs estimated flight`;
+      document.getElementById('summaryReliabilityVal').textContent = health.toFixed(1) + '%';
+
+      // Success probability: weighted from health, RUL, confidence
+      const successProb = Math.min(100, health * 0.6 + (rul / 125) * 40);
+      document.getElementById('summarySuccessVal').textContent = successProb.toFixed(1) + '%';
+
+      let rec, recColor, recDesc;
+      if (health >= 85 && faultName === 'healthy') {
+        rec = 'GO'; recColor = '#10B981'; recDesc = 'Propulsion fully airworthy for scheduled mission';
+      } else if (health >= 70) {
+        rec = 'CAUTION'; recColor = '#F59E0B'; recDesc = 'Minor component wear detected; monitor closely';
+      } else if (health >= 50) {
+        rec = 'INSPECTION REQUIRED'; recColor = '#EF4444'; recDesc = 'Ground maintenance inspection required before next sortie';
+      } else {
+        rec = 'DO NOT PROCEED'; recColor = '#EF4444'; recDesc = 'Critical degradation threshold exceeded';
+      }
+
+      const recEl = document.getElementById('summaryRecVal');
+      recEl.textContent = rec;
+      recEl.style.color = recColor;
+      document.getElementById('summaryRecDesc').textContent = recDesc;
+    }
+
+    const btn = document.getElementById('runBtn');
+    const btnLab = document.getElementById('btnRunLabSim');
+    const stopBtn = document.getElementById('btnStopLabSim');
+    const playBtn = document.getElementById('playBtn');
+    if (btn) btn.disabled = false;
+    if (btnLab) btnLab.disabled = false;
+    if (stopBtn) stopBtn.style.display = 'none';
+    if (playBtn) playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+    return;
+  }
+
+  const baseRow = ACTIVE_UNIT_DATA[liveCycleCount];
+  const totalCycles = ACTIVE_UNIT_DATA.length;
   liveCycleCount++;
-  
-  // Base stochastic reading
-  let reading = {
-    throttle_pct: 72 + (Math.random() * 4 - 2),
-    mission_altitude_m: 2500 + (Math.random() * 50 - 25),
-    mission_airspeed_kmh: 130 + (Math.random() * 5 - 2.5),
-    rpm: 5120 + (Math.random() * 40 - 20),
-    oil_pressure_kpa: 135 + (Math.random() * 4 - 2),
-    oil_temp_c: 83 + (Math.random() * 2 - 1),
-    fuel_flow_lph: 22 + (Math.random() * 1 - 0.5),
-    vibration_rms_g: 0.08 + (Math.random() * 0.02 - 0.01),
-    cht_1_c: 110 + (Math.random() * 4 - 2),
-    cht_2_c: 110 + (Math.random() * 4 - 2),
-    cht_3_c: 110 + (Math.random() * 4 - 2),
-    cht_4_c: 110 + (Math.random() * 4 - 2),
-    egt_1_c: 700 + (Math.random() * 10 - 5),
-    egt_2_c: 700 + (Math.random() * 10 - 5),
-    egt_3_c: 700 + (Math.random() * 10 - 5),
-    egt_4_c: 700 + (Math.random() * 10 - 5)
+
+  // Determine mission phase from actual synthetic telemetry
+  const phase = getMissionPhase(
+    liveCycleCount, totalCycles,
+    baseRow.mission_altitude_m, baseRow.throttle_pct
+  );
+
+  const phaseSpan = document.getElementById('currentMissionPhase');
+  const phaseBadge = document.getElementById('simPhaseBadge');
+  const cycleCounter = document.getElementById('simCycleCounter');
+
+  if (cycleCounter) {
+    cycleCounter.textContent = `Cycle ${liveCycleCount} / ${totalCycles}`;
+  }
+
+  if (phase !== lastPhaseLabel) {
+    if (phaseSpan) phaseSpan.textContent = phase;
+    if (phaseBadge) {
+      phaseBadge.textContent = phase;
+      const phaseColors = {
+        'TAKEOFF': '#00D2FF',
+        'CLIMB': '#38BDF8',
+        'CRUISE': '#10B981',
+        'HIGH-LOAD / ALTITUDE VARIATION': '#F59E0B',
+        'DESCENT': '#A855F7',
+        'MISSION COMPLETE': '#10B981'
+      };
+      const col = phaseColors[phase] || '#00D2FF';
+      phaseBadge.style.color = col;
+      phaseBadge.style.borderColor = col;
+      addTimelineNode(phase, liveCycleCount, col, null, {
+        rpm: Math.round(baseRow.rpm),
+        cht: Math.round((baseRow.cht_1_c + baseRow.cht_2_c + baseRow.cht_3_c + baseRow.cht_4_c) / 4),
+        egt: Math.round((baseRow.egt_1_c + baseRow.egt_2_c + baseRow.egt_3_c + baseRow.egt_4_c) / 4),
+        oil: (baseRow.oil_pressure_kpa / 27.5).toFixed(1),
+        alt: Math.round(baseRow.mission_altitude_m)
+      });
+    }
+    lastPhaseLabel = phase;
+  }
+
+  // Apply controlled stochastic variation (jitter) so repeated runs differ
+  const jitter = (val, maxPct = 0.008) => {
+    if (val === 0 || val === undefined) return val;
+    return val * (1 + (Math.random() - 0.5) * maxPct * 2);
   };
 
-  // Fault Progression (Stochastic Degradation)
-  if (liveTargetFault && liveTargetFault !== 'healthy') {
-    if (liveCycleCount > 5) {
-       liveFaultSeverity += (Math.random() * 0.08); // dynamic drift
-    }
-    
-    // Apply realistic deviations
-    if (liveTargetFault === 'cooling_airflow_blockage') {
-      reading.cht_1_c += liveFaultSeverity * 15;
-      reading.cht_2_c += liveFaultSeverity * 15;
-      reading.cht_3_c += liveFaultSeverity * 15;
-      reading.cht_4_c += liveFaultSeverity * 15;
-      reading.oil_temp_c += liveFaultSeverity * 4;
-    } else if (liveTargetFault === 'exhaust_valve_leak') {
-      reading.egt_1_c += liveFaultSeverity * 25;
-      reading.egt_2_c += liveFaultSeverity * 25;
-      reading.vibration_rms_g += liveFaultSeverity * 0.1;
-    } else if (liveTargetFault === 'bearing_wear') {
-      reading.vibration_rms_g += liveFaultSeverity * 0.2;
-      reading.oil_pressure_kpa -= liveFaultSeverity * 8;
-      reading.oil_temp_c += liveFaultSeverity * 5;
-    } else if (liveTargetFault === 'fuel_pump_degradation') {
-      reading.fuel_flow_lph -= liveFaultSeverity * 2;
-      reading.rpm -= liveFaultSeverity * 80;
-    } else if (liveTargetFault === 'spark_plug_fouling') {
-      reading.cht_1_c -= liveFaultSeverity * 12;
-      reading.rpm -= liveFaultSeverity * 50;
-      reading.vibration_rms_g += liveFaultSeverity * 0.05;
-    } else if (liveTargetFault === 'fuel_injector_clog') {
-      reading.fuel_flow_lph -= liveFaultSeverity * 1.5;
-      reading.egt_1_c -= liveFaultSeverity * 20;
-    } else if (liveTargetFault === 'oil_starvation') {
-      reading.oil_pressure_kpa -= liveFaultSeverity * 12;
-      reading.oil_temp_c += liveFaultSeverity * 10;
-      reading.vibration_rms_g += liveFaultSeverity * 0.15;
-    }
-  }
-  
-  // Stream to AI Backend
+  let reading = {
+    throttle_pct:         jitter(baseRow.throttle_pct, 0.012),
+    mission_altitude_m:   jitter(baseRow.mission_altitude_m, 0.015),
+    mission_airspeed_kmh: jitter(baseRow.mission_airspeed_kmh, 0.015),
+    rpm:                  jitter(baseRow.rpm, 0.006),
+    oil_pressure_kpa:     jitter(baseRow.oil_pressure_kpa, 0.01),
+    oil_temp_c:           jitter(baseRow.oil_temp_c, 0.008),
+    fuel_flow_lph:        jitter(baseRow.fuel_flow_lph, 0.01),
+    vibration_rms_g:      baseRow.vibration_rms_g + (Math.random() - 0.5) * 0.008,
+    cht_1_c:              jitter(baseRow.cht_1_c, 0.01),
+    cht_2_c:              jitter(baseRow.cht_2_c, 0.01),
+    cht_3_c:              jitter(baseRow.cht_3_c, 0.01),
+    cht_4_c:              jitter(baseRow.cht_4_c, 0.01),
+    egt_1_c:              jitter(baseRow.egt_1_c, 0.01),
+    egt_2_c:              jitter(baseRow.egt_2_c, 0.01),
+    egt_3_c:              jitter(baseRow.egt_3_c, 0.01),
+    egt_4_c:              jitter(baseRow.egt_4_c, 0.01)
+  };
+
+  // Stream reading to AI Backend
   try {
     const res = await fetch('/api/predict', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reading: reading, history: TELEMETRY_DATA.slice(-20) })
     });
-    
+
     if (!res.ok) throw new Error(await res.text());
     const aiResult = await res.json();
-    
+
+    const avgCht = (reading.cht_1_c + reading.cht_2_c + reading.cht_3_c + reading.cht_4_c) / 4;
+    const avgChtTwin = (baseRow.cht_1_twin + baseRow.cht_2_twin + baseRow.cht_3_twin + baseRow.cht_4_twin) / 4;
+    const avgEgt = (reading.egt_1_c + reading.egt_2_c + reading.egt_3_c + reading.egt_4_c) / 4;
+    const avgEgtTwin = (baseRow.egt_1_twin + baseRow.egt_2_twin + baseRow.egt_3_twin + baseRow.egt_4_twin) / 4;
+
     const fullCycleData = {
       cycle: liveCycleCount,
+      phase: phase,
       ...reading,
       ...aiResult,
-      // Create twin baselines for charting aesthetics
-      cht_1_twin: 110, cht_2_twin: 110, cht_3_twin: 110, cht_4_twin: 110,
-      egt_1_twin: 700, egt_2_twin: 700, egt_3_twin: 700, egt_4_twin: 700,
-      oil_pressure_twin: 135, vibration_twin: 0.08
+      // Twin physics baselines
+      cht_1_twin: baseRow.cht_1_twin, cht_2_twin: baseRow.cht_2_twin,
+      cht_3_twin: baseRow.cht_3_twin, cht_4_twin: baseRow.cht_4_twin,
+      egt_1_twin: baseRow.egt_1_twin, egt_2_twin: baseRow.egt_2_twin,
+      egt_3_twin: baseRow.egt_3_twin, egt_4_twin: baseRow.egt_4_twin,
+      oil_pressure_twin: baseRow.oil_pressure_twin,
+      oil_temp_twin: baseRow.oil_temp_twin,
+      fuel_flow_twin: baseRow.fuel_flow_twin,
+      vibration_twin: 0.08
     };
-    
+
     TELEMETRY_DATA.push(fullCycleData);
-    if (TELEMETRY_DATA.length > 250) TELEMETRY_DATA.shift(); // rolling window
-    
+
+    // Update Live UI Tiles
+    const rpmDev = ((reading.rpm - baseRow.rpm_twin) / baseRow.rpm_twin * 100).toFixed(1);
+    const chtDev = ((avgCht - avgChtTwin) / avgChtTwin * 100).toFixed(1);
+    const egtDev = ((avgEgt - avgEgtTwin) / avgEgtTwin * 100).toFixed(1);
+    const oilPDev = ((reading.oil_pressure_kpa - baseRow.oil_pressure_twin) / baseRow.oil_pressure_twin * 100).toFixed(1);
+    const fuelDev = ((reading.fuel_flow_lph - baseRow.fuel_flow_twin) / baseRow.fuel_flow_twin * 100).toFixed(1);
+    const vibDev = (reading.vibration_rms_g - 0.08).toFixed(2);
+
+    const setValAndDev = (valId, devId, valText, devText, isWarn, isAlert) => {
+      const vEl = document.getElementById(valId);
+      const dEl = document.getElementById(devId);
+      if (vEl) vEl.textContent = valText;
+      if (dEl) {
+        dEl.textContent = devText;
+        dEl.className = 'smc-dev ' + (isAlert ? 'dev-alert' : isWarn ? 'dev-warn' : '');
+      }
+    };
+
+    setValAndDev('simRpmVal', 'simRpmDev', Math.round(reading.rpm).toLocaleString(), `Δ ${rpmDev >= 0 ? '+' : ''}${rpmDev}%`, Math.abs(rpmDev) > 5, Math.abs(rpmDev) > 10);
+    setValAndDev('simChtVal', 'simChtDev', `${Math.round(avgCht)}°C`, `Δ ${chtDev >= 0 ? '+' : ''}${chtDev}%`, Math.abs(chtDev) > 8, Math.abs(chtDev) > 15);
+    setValAndDev('simEgtVal', 'simEgtDev', `${Math.round(avgEgt)}°C`, `Δ ${egtDev >= 0 ? '+' : ''}${egtDev}%`, Math.abs(egtDev) > 8, Math.abs(egtDev) > 15);
+    setValAndDev('simOilPVal', 'simOilPDev', `${(reading.oil_pressure_kpa / 27.5).toFixed(1)} bar`, `Δ ${oilPDev >= 0 ? '+' : ''}${oilPDev}%`, Math.abs(oilPDev) > 10, Math.abs(oilPDev) > 20);
+    setValAndDev('simFuelVal', 'simFuelDev', `${(reading.fuel_flow_lph * 0.75).toFixed(1)} kg/h`, `Δ ${fuelDev >= 0 ? '+' : ''}${fuelDev}%`, Math.abs(fuelDev) > 10, Math.abs(fuelDev) > 20);
+    setValAndDev('simVibVal', 'simVibDev', `${reading.vibration_rms_g.toFixed(2)} g`, reading.vibration_rms_g > 0.3 ? `+${vibDev} g (HIGH)` : 'Nominal', reading.vibration_rms_g > 0.22, reading.vibration_rms_g > 0.35);
+
+    // AI Diagnostics Strip
+    const faultName = aiResult.predicted_fault_name || 'healthy';
+    const compInfo = getFaultComponentDetails(faultName);
+    const confPct = Math.round((aiResult.fault_confidence || 0) * 100);
+    const healthVal = aiResult.mission_reliability_pct ?? 100;
+    const rulVal = aiResult.predicted_RUL ?? 125;
+    const successVal = Math.min(100, healthVal * 0.6 + (rulVal / 125) * 40);
+
+    const elHealth = document.getElementById('simAiHealthVal');
+    const elFault = document.getElementById('simAiFaultVal');
+    const elComp = document.getElementById('simAiCompVal');
+    const elConf = document.getElementById('simAiConfVal');
+    const elRul = document.getElementById('simAiRulVal');
+    const elRel = document.getElementById('simAiRelVal');
+    const elSucc = document.getElementById('simAiSuccessVal');
+
+    if (elHealth) elHealth.textContent = `${healthVal.toFixed(1)}%`;
+    if (elFault) elFault.textContent = faultName === 'healthy' ? 'NOMINAL' : faultName.replace(/_/g, ' ').toUpperCase();
+    if (elComp) elComp.textContent = compInfo.component;
+    if (elConf) elConf.textContent = `${confPct}%`;
+    if (elRul) elRul.textContent = `${rulVal.toFixed(1)} cyc (${(rulVal * 0.3).toFixed(1)}h)`;
+    if (elRel) elRel.textContent = `${healthVal.toFixed(1)}%`;
+    if (elSucc) elSucc.textContent = `${successVal.toFixed(1)}%`;
+
+    // Connect detected fault to 3D engine: highlight affected component
+    if (faultName !== 'healthy' && confPct >= 70 && !hasLoggedFaultTimeline) {
+      hasLoggedFaultTimeline = true;
+      addTimelineNode('FAULT DETECTED', liveCycleCount, '#EF4444', {
+        name: faultName,
+        component: compInfo.component,
+        confidence: aiResult.fault_confidence
+      });
+      focusComponent(compInfo.key);
+    }
+
+    // Append to charts
     appendTelemetryData(fullCycleData);
     updateCycle(TELEMETRY_DATA.length - 1);
-    
+
   } catch (err) {
     console.error("Live streaming error: ", err);
     setConnectionStatus(false);
@@ -1247,10 +2065,13 @@ function appendTelemetryData(d) {
   
   if (CHARTS.simTemp) {
     CHARTS.simTemp.data.labels.push(lbl);
-    CHARTS.simTemp.data.datasets[0].data.push((d.cht_1_c + d.cht_2_c + d.cht_3_c + d.cht_4_c) / 4);
-    CHARTS.simTemp.data.datasets[1].data.push((d.cht_1_twin + d.cht_2_twin + d.cht_3_twin + d.cht_4_twin) / 4);
-    CHARTS.simTemp.data.datasets[2].data.push((d.egt_1_c + d.egt_2_c + d.egt_3_c + d.egt_4_c) / 4);
-    if (CHARTS.simTemp.data.labels.length > 50) {
+    const avgCht = (d.cht_1_c + d.cht_2_c + d.cht_3_c + d.cht_4_c) / 4;
+    const avgChtTwin = (d.cht_1_twin + d.cht_2_twin + d.cht_3_twin + d.cht_4_twin) / 4;
+    const avgEgt = (d.egt_1_c + d.egt_2_c + d.egt_3_c + d.egt_4_c) / 4;
+    CHARTS.simTemp.data.datasets[0].data.push(Math.round(avgCht));
+    CHARTS.simTemp.data.datasets[1].data.push(Math.round(avgChtTwin));
+    CHARTS.simTemp.data.datasets[2].data.push(Math.round(avgEgt));
+    if (CHARTS.simTemp.data.labels.length > 60) {
       CHARTS.simTemp.data.labels.shift();
       CHARTS.simTemp.data.datasets.forEach(ds => ds.data.shift());
     }
@@ -1259,9 +2080,9 @@ function appendTelemetryData(d) {
   
   if (CHARTS.simMech) {
     CHARTS.simMech.data.labels.push(lbl);
-    CHARTS.simMech.data.datasets[0].data.push(d.oil_pressure_kpa);
-    CHARTS.simMech.data.datasets[1].data.push(d.vibration_rms_g);
-    if (CHARTS.simMech.data.labels.length > 50) {
+    CHARTS.simMech.data.datasets[0].data.push(parseFloat((d.oil_pressure_kpa / 27.5).toFixed(1)));
+    CHARTS.simMech.data.datasets[1].data.push(parseFloat(d.vibration_rms_g.toFixed(2)));
+    if (CHARTS.simMech.data.labels.length > 60) {
       CHARTS.simMech.data.labels.shift();
       CHARTS.simMech.data.datasets.forEach(ds => ds.data.shift());
     }
@@ -1287,28 +2108,33 @@ function togglePlayback() {
     if (btn) btn.innerHTML = '<i class="fa-solid fa-play"></i>';
     const runBtn = document.getElementById('runBtn');
     const labBtn = document.getElementById('btnRunLabSim');
+    const stopBtn = document.getElementById('btnStopLabSim');
     if (runBtn) runBtn.disabled = false;
     if (labBtn) labBtn.disabled = false;
+    if (stopBtn) stopBtn.style.display = 'none';
   } else {
     if (TELEMETRY_DATA.length > 0 || liveCycleCount === 0) {
       if (liveCycleCount === 0) {
-         startLiveMission(document.getElementById('faultSelect').value || null);
+         startLiveMission(document.getElementById('faultSelect')?.value || 'healthy', 'random');
       } else {
          liveMissionActive = true;
          isPlaying = true;
          if (btn) btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
-         const speedMultiplier = parseInt(document.getElementById('speedSelect')?.value || '4', 10);
-         const intervalMs = Math.max(100, 1000 / speedMultiplier);
+         const speedMultiplier = parseInt(document.getElementById('simSpeedSelect')?.value || document.getElementById('speedSelect')?.value || '4', 10);
+         const intervalMs = Math.max(50, 1000 / speedMultiplier);
          liveMissionTimer = setInterval(liveMissionTick, intervalMs);
          
          const runBtn = document.getElementById('runBtn');
          const labBtn = document.getElementById('btnRunLabSim');
+         const stopBtn = document.getElementById('btnStopLabSim');
          if (runBtn) runBtn.disabled = true;
          if (labBtn) labBtn.disabled = true;
+         if (stopBtn) stopBtn.style.display = 'inline-flex';
       }
     }
   }
 }
+
 
 function setConnectionStatus(ok) {
   const el = document.getElementById('connStatus');
