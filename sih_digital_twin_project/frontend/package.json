@@ -1,0 +1,23 @@
+{
+  "name": "aerotwin-ai-frontend",
+  "version": "1.0.0",
+  "description": "AEROTWIN-AI — Real-Time Digital Twin for Aero Piston Engines in MALE UAVs",
+  "private": true,
+  "scripts": {
+    "dev": "serve . -p 3000",
+    "start": "serve .",
+    "build": "echo 'Build complete'"
+  },
+  "keywords": [
+    "digital-twin",
+    "aerospace",
+    "uav",
+    "telemetry",
+    "threejs"
+  ],
+  "author": "AeroTwin-AI Team",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}
