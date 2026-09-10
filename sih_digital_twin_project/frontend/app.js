@@ -3,6 +3,9 @@
    Three.js 3D Aero-Piston Engine, Multi-Page Router, Simulator Lab & Reports
    ========================================================================== */
 
+// --- Global API Configuration ---
+const API_BASE = "http://localhost:8000";
+
 // --- Global State ---
 let TELEMETRY_DATA = [];
 let currentCycleIdx = 0;
@@ -1727,7 +1730,7 @@ function getFaultComponentDetails(faultKeyOrName) {
 async function loadSyntheticDataset() {
   const statusEl = document.getElementById('simDatasetStatus');
   try {
-    const res = await fetch('/data/synthetic_train.csv');
+    const res = await fetch(`${API_BASE}/data/synthetic_train.csv`);
     if (!res.ok) throw new Error("Could not fetch synthetic_train.csv");
     const text = await res.text();
     const lines = text.trim().split('\n');
@@ -2253,7 +2256,7 @@ async function liveMissionTick() {
 
   // Stage 2: Analyze (Stream to AI Model)
   try {
-    const res = await fetch('/api/predict', {
+    const res = await fetch(`${API_BASE}/api/predict`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reading: reading, history: TELEMETRY_DATA.slice(-20) })
@@ -2389,6 +2392,70 @@ async function liveMissionTick() {
     // Append to charts
     appendTelemetryData(fullCycleData);
     updateCycle(TELEMETRY_DATA.length - 1);
+
+    // Immediate Abort / Termination check if critical condition detected
+    if (decisionObj.recommendation === 'CRITICAL → ABORT') {
+      clearInterval(liveMissionTimer);
+      liveMissionTimer = null;
+      liveMissionActive = false;
+      isPlaying = false;
+
+      const phaseSpan = document.getElementById('currentMissionPhase');
+      if (phaseSpan) phaseSpan.textContent = 'EMERGENCY ABORT';
+      const phaseBadge = document.getElementById('simPhaseBadge');
+      if (phaseBadge) {
+        phaseBadge.textContent = 'EMERGENCY ABORT';
+        phaseBadge.style.color = '#EF4444';
+        phaseBadge.style.borderColor = '#EF4444';
+      }
+
+      addTimelineNode('CRITICAL FAULT — MISSION ABORTED', liveCycleCount, '#EF4444', {
+        name: faultName !== 'healthy' ? faultName : liveTargetFault,
+        component: compInfo.component,
+        confidence: aiResult.fault_confidence || 0.95
+      }, {
+        rpm: Math.round(reading.rpm),
+        cht: Math.round(avgCht),
+        egt: Math.round(avgEgt),
+        oil: (reading.oil_pressure_kpa / 27.5).toFixed(1),
+        alt: Math.round(reading.mission_altitude_m)
+      });
+
+      const status = document.getElementById('runStatus');
+      if (status) status.textContent = `Mission Terminated Early (Critical Condition at Cycle ${liveCycleCount})`;
+      const summary = document.getElementById('simResultSummary');
+      if (summary) summary.innerHTML = `<span style="color:#EF4444;font-weight:bold;"><i class="fa-solid fa-triangle-exclamation"></i> Emergency Abort Executed at Cycle ${liveCycleCount} of ${totalCycles}</span>`;
+
+      // Build Final Summary immediately at Abort point
+      const finalSummaryDiv = document.getElementById('missionFinalSummary');
+      if (finalSummaryDiv) {
+        finalSummaryDiv.style.display = 'block';
+        document.getElementById('summaryHealthVal').textContent = healthVal.toFixed(1) + '%';
+        document.getElementById('summaryFaultVal').textContent =
+          faultName !== 'healthy'
+            ? faultName.replace(/_/g, ' ').toUpperCase() + ` (${confPct}% conf)`
+            : 'CRITICAL ANOMALY DETECTED';
+        document.getElementById('summaryCompVal').textContent = `Affected Component: ${compInfo.component}`;
+        document.getElementById('summaryRulVal').textContent = `${rulVal.toFixed(1)} cycles`;
+        document.getElementById('summaryRulHrsVal').textContent = `${rulHrs.toFixed(1)} hrs estimated flight`;
+        document.getElementById('summaryReliabilityVal').textContent = healthVal.toFixed(1) + '%';
+        document.getElementById('summarySuccessVal').textContent = successVal.toFixed(1) + '%';
+
+        const recEl = document.getElementById('summaryRecVal');
+        recEl.textContent = decisionObj.recommendation;
+        recEl.style.color = '#EF4444';
+        document.getElementById('summaryRecDesc').textContent = decisionObj.description;
+      }
+
+      const btn = document.getElementById('runBtn');
+      const btnLab = document.getElementById('btnRunLabSim');
+      const stopBtn = document.getElementById('btnStopLabSim');
+      const playBtn = document.getElementById('playBtn');
+      if (btn) btn.disabled = false;
+      if (btnLab) btnLab.disabled = false;
+      if (stopBtn) stopBtn.style.display = 'none';
+      if (playBtn) playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+    }
 
   } catch (err) {
     console.error("Live streaming error: ", err);
@@ -2564,7 +2631,7 @@ async function loadMissionHistory() {
   if (!tbody) return;
 
   try {
-    const res = await fetch('/api/history?limit=25');
+    const res = await fetch(`${API_BASE}/api/history?limit=25`);
     if (!res.ok) throw new Error(await res.text());
     const runs = await res.json();
 
@@ -2822,7 +2889,7 @@ async function scoreManualTelemetry() {
   btn.disabled = true;
 
   try {
-    const res = await fetch('/api/predict', {
+    const res = await fetch(`${API_BASE}/api/predict`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reading })
@@ -2978,7 +3045,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Check health and run initial simulation
-  fetch('/api/health')
+  fetch(`${API_BASE}/api/health`)
     .then(r => setConnectionStatus(r.ok))
     .catch(() => setConnectionStatus(false));
 

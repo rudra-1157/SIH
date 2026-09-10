@@ -3,11 +3,21 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 import twin_model as tm
 import database as db
 
 app = FastAPI(title="MALE UAV Piston Engine Digital Twin API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 db.init_db()
 
 
@@ -73,10 +83,5 @@ def history_detail(run_id: int):
     return payload
 
 
-# --- serve the frontend ---
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# --- serve synthetic data ---
 app.mount("/data", StaticFiles(directory="../synthetic_data"), name="data")
-
-@app.get("/")
-def index():
-    return FileResponse("static/index.html")
