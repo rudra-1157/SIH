@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -84,4 +85,8 @@ def history_detail(run_id: int):
 
 
 # --- serve synthetic data ---
-app.mount("/data", StaticFiles(directory="../synthetic_data"), name="data")
+data_candidates = ["data", "synthetic_data", "../synthetic_data", "../data"]
+for candidate in data_candidates:
+    if os.path.isdir(candidate):
+        app.mount("/data", StaticFiles(directory=candidate), name="data")
+        break

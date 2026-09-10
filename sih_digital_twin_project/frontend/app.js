@@ -1730,7 +1730,10 @@ function getFaultComponentDetails(faultKeyOrName) {
 async function loadSyntheticDataset() {
   const statusEl = document.getElementById('simDatasetStatus');
   try {
-    const res = await fetch(`${API_BASE}/data/synthetic_train.csv`);
+    let res = await fetch(`${API_BASE}/data/synthetic_train.csv`).catch(() => null);
+    if (!res || !res.ok) {
+      res = await fetch('./data/synthetic_train.csv');
+    }
     if (!res.ok) throw new Error("Could not fetch synthetic_train.csv");
     const text = await res.text();
     const lines = text.trim().split('\n');
