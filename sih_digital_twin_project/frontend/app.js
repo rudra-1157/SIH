@@ -26,17 +26,17 @@ let plannedMaxAltitudeFt = 18000;
 // --- Charts Registry ---
 const CHARTS = {};
 
-// --- Color Theme Constants (Warm Aerospace Theme) ---
+// --- Color Theme Constants (Crisp Light Blue / Sky Aerospace Theme) ---
 const APP_COLORS = {
-  blue: '#D97706',      // Warm Aviation Amber
-  orange: '#EA580C',    // Warm Terracotta / Burnt Orange
+  blue: '#0284C7',      // Light Sky Blue (Primary)
+  orange: '#0EA5E9',    // Bright Sky Cyan
   red: '#DC2626',       // Rich Crimson
   green: '#059669',     // Forest Emerald
-  yellow: '#D97706',    // Warm Amber Gold
-  cyan: '#B45309',      // Deep Bronze Copper
-  purple: '#9333EA',    // Warm Purple
-  dimLine: 'rgba(120, 113, 108, 0.2)', // Warm Stone Grid Lines
-  textSecondary: '#44403C' // Warm Slate Text
+  yellow: '#D97706',    // Amber Caution
+  cyan: '#38BDF8',      // Ice Cyan
+  purple: '#8B5CF6',    // Soft Violet
+  dimLine: 'rgba(148, 163, 184, 0.25)', // Cool Slate Grid Lines
+  textSecondary: '#334155' // Slate Text
 };
 
 // ==========================================================================
@@ -141,9 +141,9 @@ function initThreeEngine() {
   const height = container.clientHeight || 440;
 
   scene = new THREE.Scene();
-  // Transparent scene background allows the warm engineering backdrop gradient to shine through
+  // Transparent scene background allows the light blue engineering backdrop gradient to shine through
   scene.background = null;
-  scene.fog = new THREE.FogExp2(0x29241E, 0.025);
+  scene.fog = new THREE.FogExp2(0x0F2338, 0.025);
 
   camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
   camera.position.set(4.5, 2.8, 4.8);
@@ -164,23 +164,23 @@ function initThreeEngine() {
   controls.minDistance = 2.0;
   controls.target.set(0, 0, 0);
 
-  const ambientLight = new THREE.AmbientLight(0x5A4A38, 2.2);
+  const ambientLight = new THREE.AmbientLight(0x3B526B, 2.2);
   scene.add(ambientLight);
 
-  const keyLight = new THREE.DirectionalLight(0xFFF7EC, 2.6);
+  const keyLight = new THREE.DirectionalLight(0xF0F9FF, 2.6);
   keyLight.position.set(6, 8, 5);
   keyLight.castShadow = true;
   scene.add(keyLight);
 
-  const fillLight = new THREE.DirectionalLight(0xEA580C, 1.4);
+  const fillLight = new THREE.DirectionalLight(0x38BDF8, 1.4);
   fillLight.position.set(-6, -2, -4);
   scene.add(fillLight);
 
-  const topRimLight = new THREE.PointLight(0xF59E0B, 2.4, 12);
+  const topRimLight = new THREE.PointLight(0x0284C7, 2.4, 12);
   topRimLight.position.set(0, 4, 0);
   scene.add(topRimLight);
 
-  const gridHelper = new THREE.GridHelper(10, 20, 0xD97706, 0x6B5844);
+  const gridHelper = new THREE.GridHelper(10, 20, 0x0284C7, 0x1E3A5F);
   gridHelper.position.y = -1.5;
   scene.add(gridHelper);
 
@@ -208,7 +208,7 @@ function initThreeEngine() {
     isAutoRotating = !isAutoRotating;
     controls.autoRotate = isAutoRotating;
     controls.autoRotateSpeed = 2.5;
-    document.getElementById('btnAutoRotate').style.color = isAutoRotating ? '#D97706' : '';
+    document.getElementById('btnAutoRotate').style.color = isAutoRotating ? '#0284C7' : '';
   });
 
   // View Selector
