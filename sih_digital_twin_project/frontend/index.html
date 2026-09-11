@@ -21,6 +21,223 @@
 </head>
 <body>
 
+<!-- ================= DEFENSE AUTHENTICATION SCREEN (Full-Screen Mandatory Portal) ================= -->
+<div id="defenseAuthScreen" class="def-auth-screen" style="display:flex;" aria-modal="true" role="dialog" aria-label="Ground Station Authentication">
+
+  <!-- Left: Branding Panel -->
+  <div class="def-auth-left">
+    <div class="def-auth-brand">
+      <div class="def-brand-emblem">
+        <i class="fa-solid fa-cube"></i>
+      </div>
+      <div class="def-brand-wordmark">
+        <span class="def-brand-name">AEROTWIN-AI</span>
+        <span class="def-brand-tagline">Aero-Piston Engine Digital Twin</span>
+      </div>
+    </div>
+
+    <div class="def-auth-info-block">
+      <div class="def-info-row"><i class="fa-solid fa-satellite-dish"></i><span>MALE UAV Ground Control Station</span></div>
+      <div class="def-info-row"><i class="fa-solid fa-microchip"></i><span>Real-Time Telemetry &amp; AI Diagnostics</span></div>
+      <div class="def-info-row"><i class="fa-solid fa-shield-halved"></i><span>Restricted Access — Authorised Personnel Only</span></div>
+      <div class="def-info-row"><i class="fa-solid fa-lock"></i><span>End-to-End Encrypted Uplink Active</span></div>
+    </div>
+
+    <div class="def-classification-banner">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span>DRDO–ADE | SIH 2024 PROTOTYPE</span>
+    </div>
+
+    <div class="def-auth-footer-meta">
+      <span id="defAuthClock" class="def-auth-clock">--:--:-- UTC</span>
+      <span class="def-auth-station">GCS-NORTH-01</span>
+    </div>
+  </div>
+
+  <!-- Right: Authentication Panel -->
+  <div class="def-auth-right">
+
+    <!-- Tab Switcher -->
+    <div class="def-auth-tabs">
+      <button class="def-tab-btn active" id="defTabLogin" onclick="switchDefAuthTab('login')">
+        <i class="fa-solid fa-right-to-bracket"></i> SIGN IN
+      </button>
+      <button class="def-tab-btn" id="defTabRegister" onclick="switchDefAuthTab('register')">
+        <i class="fa-solid fa-user-plus"></i> REGISTER
+      </button>
+    </div>
+
+    <!-- ─── LOGIN TAB ─── -->
+    <div class="def-auth-panel active" id="defPanelLogin">
+      <div class="def-panel-heading">
+        <div class="def-panel-title">Operator Authentication</div>
+        <div class="def-panel-sub">Enter credentials to unlock the Ground Station dashboard</div>
+      </div>
+
+      <div class="def-sec-strip">
+        <i class="fa-solid fa-lock def-sec-icon"></i>
+        <div>
+          <div class="def-sec-label">RESTRICTED ACCESS</div>
+          <div class="def-sec-note">Telemetry uplink encrypted &bull; Security clearance required</div>
+        </div>
+      </div>
+
+      <!-- Role Selector -->
+      <div class="def-role-section">
+        <div class="def-field-label"><i class="fa-solid fa-id-badge"></i> Operator Role</div>
+        <div class="def-role-grid">
+          <button type="button" class="def-role-pill active" id="roleLoginFlight" onclick="defSelectRole('FLIGHT TEST ENGR','operator@uav-defense.in','login')">
+            <i class="fa-solid fa-user-gear"></i><span>Flight Engr</span>
+          </button>
+          <button type="button" class="def-role-pill" id="roleLoginCmd" onclick="defSelectRole('MISSION COMMANDER','commander@uav-defense.in','login')">
+            <i class="fa-solid fa-user-astronaut"></i><span>Commander</span>
+          </button>
+          <button type="button" class="def-role-pill" id="roleLoginMaint" onclick="defSelectRole('MAINTENANCE LEAD','maintenance@uav-defense.in','login')">
+            <i class="fa-solid fa-wrench"></i><span>Maintenance</span>
+          </button>
+          <button type="button" class="def-role-pill" id="roleLoginAnalyst" onclick="defSelectRole('AI TELEMETRY ANALYST','ai-analyst@uav-defense.in','login')">
+            <i class="fa-solid fa-brain"></i><span>AI Analyst</span>
+          </button>
+        </div>
+      </div>
+
+      <form id="defLoginForm" onsubmit="event.preventDefault(); defHandleLogin();">
+        <input type="hidden" id="defLoginRole" value="FLIGHT TEST ENGR">
+
+        <div class="def-field-group">
+          <label class="def-field-label" for="defLoginUser">
+            <i class="fa-solid fa-user-check"></i> Operator ID / Call-sign
+          </label>
+          <input type="email" id="defLoginUser" class="def-input" placeholder="operator@uav-defense.in" value="operator@uav-defense.in" autocomplete="username" required>
+        </div>
+
+        <div class="def-field-group">
+          <label class="def-field-label" for="defLoginPass">
+            <i class="fa-solid fa-key"></i> Security Passkey
+          </label>
+          <div class="def-pwd-wrap">
+            <input type="password" id="defLoginPass" class="def-input" placeholder="Enter station security passkey" value="AeroTwin2026Secure!" autocomplete="current-password" required>
+            <i class="fa-regular fa-eye def-pwd-toggle" onclick="defTogglePwd('defLoginPass',this)" title="Show / Hide"></i>
+          </div>
+        </div>
+
+        <div class="def-options-row">
+          <label class="def-checkbox-label">
+            <input type="checkbox" id="defLoginRemember" checked> Remember station session
+          </label>
+          <span class="def-session-pill"><i class="fa-solid fa-satellite-dish"></i> GCS-NORTH-01</span>
+        </div>
+
+        <div id="defLoginStatus" class="def-status-box" style="display:none;"></div>
+
+        <button type="submit" class="def-primary-btn" id="defLoginSubmitBtn">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span id="defLoginBtnText">AUTHENTICATE &amp; ENTER DASHBOARD</span>
+        </button>
+
+        <button type="button" class="def-secondary-btn" onclick="defQuickAccess()">
+          <i class="fa-solid fa-bolt"></i> Quick Demo Access &mdash; 1-Click Guest Pass
+        </button>
+      </form>
+    </div>
+
+    <!-- ─── REGISTER TAB ─── -->
+    <div class="def-auth-panel" id="defPanelRegister">
+      <div class="def-panel-heading">
+        <div class="def-panel-title">Register New Operator</div>
+        <div class="def-panel-sub">Create a new station account to access the AeroTwin-AI system</div>
+      </div>
+
+      <div class="def-sec-strip">
+        <i class="fa-solid fa-user-shield def-sec-icon"></i>
+        <div>
+          <div class="def-sec-label">NEW OPERATOR REGISTRATION</div>
+          <div class="def-sec-note">Account requires admin approval for full system access</div>
+        </div>
+      </div>
+
+      <!-- Role Selector for Register -->
+      <div class="def-role-section">
+        <div class="def-field-label"><i class="fa-solid fa-id-badge"></i> Requesting Role</div>
+        <div class="def-role-grid">
+          <button type="button" class="def-role-pill active" id="roleRegFlight" onclick="defSelectRole('FLIGHT TEST ENGR','','register')">
+            <i class="fa-solid fa-user-gear"></i><span>Flight Engr</span>
+          </button>
+          <button type="button" class="def-role-pill" id="roleRegCmd" onclick="defSelectRole('MISSION COMMANDER','','register')">
+            <i class="fa-solid fa-user-astronaut"></i><span>Commander</span>
+          </button>
+          <button type="button" class="def-role-pill" id="roleRegMaint" onclick="defSelectRole('MAINTENANCE LEAD','','register')">
+            <i class="fa-solid fa-wrench"></i><span>Maintenance</span>
+          </button>
+          <button type="button" class="def-role-pill" id="roleRegAnalyst" onclick="defSelectRole('AI TELEMETRY ANALYST','','register')">
+            <i class="fa-solid fa-brain"></i><span>AI Analyst</span>
+          </button>
+        </div>
+      </div>
+
+      <form id="defRegisterForm" onsubmit="event.preventDefault(); defHandleRegister();">
+        <input type="hidden" id="defRegisterRole" value="FLIGHT TEST ENGR">
+
+        <div class="def-field-row-2">
+          <div class="def-field-group">
+            <label class="def-field-label" for="defRegName">
+              <i class="fa-solid fa-user"></i> Full Name / Call-sign
+            </label>
+            <input type="text" id="defRegName" class="def-input" placeholder="Sqn Ldr R. Sharma" required>
+          </div>
+          <div class="def-field-group">
+            <label class="def-field-label" for="defRegBadge">
+              <i class="fa-solid fa-id-card"></i> Badge / Service No.
+            </label>
+            <input type="text" id="defRegBadge" class="def-input" placeholder="IN-SN-20240001" required>
+          </div>
+        </div>
+
+        <div class="def-field-group">
+          <label class="def-field-label" for="defRegEmail">
+            <i class="fa-solid fa-envelope"></i> Official Email ID
+          </label>
+          <input type="email" id="defRegEmail" class="def-input" placeholder="name@uav-defense.in" autocomplete="email" required>
+        </div>
+
+        <div class="def-field-row-2">
+          <div class="def-field-group">
+            <label class="def-field-label" for="defRegPass">
+              <i class="fa-solid fa-key"></i> Set Passkey
+            </label>
+            <div class="def-pwd-wrap">
+              <input type="password" id="defRegPass" class="def-input" placeholder="Min 8 chars" autocomplete="new-password" required>
+              <i class="fa-regular fa-eye def-pwd-toggle" onclick="defTogglePwd('defRegPass',this)"></i>
+            </div>
+          </div>
+          <div class="def-field-group">
+            <label class="def-field-label" for="defRegPassConfirm">
+              <i class="fa-solid fa-key"></i> Confirm Passkey
+            </label>
+            <div class="def-pwd-wrap">
+              <input type="password" id="defRegPassConfirm" class="def-input" placeholder="Re-enter passkey" autocomplete="new-password" required>
+              <i class="fa-regular fa-eye def-pwd-toggle" onclick="defTogglePwd('defRegPassConfirm',this)"></i>
+            </div>
+          </div>
+        </div>
+
+        <div id="defRegisterStatus" class="def-status-box" style="display:none;"></div>
+
+        <button type="submit" class="def-primary-btn" id="defRegisterSubmitBtn">
+          <i class="fa-solid fa-user-plus"></i>
+          <span id="defRegBtnText">REGISTER &amp; REQUEST ACCESS</span>
+        </button>
+
+        <div class="def-reg-note">
+          Already have an account?
+          <button type="button" class="def-link-btn" onclick="switchDefAuthTab('login')">Sign In here</button>
+        </div>
+      </form>
+    </div>
+
+  </div><!-- /def-auth-right -->
+</div><!-- /defenseAuthScreen -->
+
 <div id="aerotwin-app" class="app-shell">
 
   <!-- ================= TOP HEADER BANNER (Consistent across all pages) ================= -->
@@ -59,6 +276,10 @@
         </div>
         <i class="fa-solid fa-chevron-down op-chevron"></i>
       </div>
+
+      <button class="header-lock-btn" id="headerLockBtn" title="Lock Ground Station / Sign Out" onclick="lockStation()">
+        <i class="fa-solid fa-lock"></i> Lock
+      </button>
 
       <button class="header-report-btn" id="headerGenReportBtn" title="Generate Comprehensive Engineering Report">
         <i class="fa-solid fa-file-waveform"></i> Generate Report
@@ -1131,223 +1352,6 @@
       </div>
     </div>
   </div>
-
-  <!-- ================= DEFENSE AUTHENTICATION SCREEN (Full-Screen, Blocks Dashboard) ================= -->
-  <div id="defenseAuthScreen" class="def-auth-screen" aria-modal="true" role="dialog" aria-label="Ground Station Authentication">
-
-    <!-- Left: Branding Panel -->
-    <div class="def-auth-left">
-      <div class="def-auth-brand">
-        <div class="def-brand-emblem">
-          <i class="fa-solid fa-cube"></i>
-        </div>
-        <div class="def-brand-wordmark">
-          <span class="def-brand-name">AEROTWIN-AI</span>
-          <span class="def-brand-tagline">Aero-Piston Engine Digital Twin</span>
-        </div>
-      </div>
-
-      <div class="def-auth-info-block">
-        <div class="def-info-row"><i class="fa-solid fa-satellite-dish"></i><span>MALE UAV Ground Control Station</span></div>
-        <div class="def-info-row"><i class="fa-solid fa-microchip"></i><span>Real-Time Telemetry &amp; AI Diagnostics</span></div>
-        <div class="def-info-row"><i class="fa-solid fa-shield-halved"></i><span>Restricted Access — Authorised Personnel Only</span></div>
-        <div class="def-info-row"><i class="fa-solid fa-lock"></i><span>End-to-End Encrypted Uplink Active</span></div>
-      </div>
-
-      <div class="def-classification-banner">
-        <i class="fa-solid fa-triangle-exclamation"></i>
-        <span>DRDO–ADE | SIH 2024 PROTOTYPE</span>
-      </div>
-
-      <div class="def-auth-footer-meta">
-        <span id="defAuthClock" class="def-auth-clock">--:--:-- UTC</span>
-        <span class="def-auth-station">GCS-NORTH-01</span>
-      </div>
-    </div>
-
-    <!-- Right: Authentication Panel -->
-    <div class="def-auth-right">
-
-      <!-- Tab Switcher -->
-      <div class="def-auth-tabs">
-        <button class="def-tab-btn active" id="defTabLogin" onclick="switchDefAuthTab('login')">
-          <i class="fa-solid fa-right-to-bracket"></i> SIGN IN
-        </button>
-        <button class="def-tab-btn" id="defTabRegister" onclick="switchDefAuthTab('register')">
-          <i class="fa-solid fa-user-plus"></i> REGISTER
-        </button>
-      </div>
-
-      <!-- ─── LOGIN TAB ─── -->
-      <div class="def-auth-panel active" id="defPanelLogin">
-        <div class="def-panel-heading">
-          <div class="def-panel-title">Operator Authentication</div>
-          <div class="def-panel-sub">Enter your credentials to access the Ground Station dashboard</div>
-        </div>
-
-        <div class="def-sec-strip">
-          <i class="fa-solid fa-lock def-sec-icon"></i>
-          <div>
-            <div class="def-sec-label">RESTRICTED ACCESS</div>
-            <div class="def-sec-note">Telemetry uplink encrypted · Security clearance required</div>
-          </div>
-        </div>
-
-        <!-- Role Selector -->
-        <div class="def-role-section">
-          <div class="def-field-label"><i class="fa-solid fa-id-badge"></i> Operator Role</div>
-          <div class="def-role-grid">
-            <button type="button" class="def-role-pill active" id="roleLoginFlight" onclick="defSelectRole('FLIGHT TEST ENGR','operator@uav-defense.in','login')">
-              <i class="fa-solid fa-user-gear"></i><span>Flight Engr</span>
-            </button>
-            <button type="button" class="def-role-pill" id="roleLoginCmd" onclick="defSelectRole('MISSION COMMANDER','commander@uav-defense.in','login')">
-              <i class="fa-solid fa-user-astronaut"></i><span>Commander</span>
-            </button>
-            <button type="button" class="def-role-pill" id="roleLoginMaint" onclick="defSelectRole('MAINTENANCE LEAD','maintenance@uav-defense.in','login')">
-              <i class="fa-solid fa-wrench"></i><span>Maintenance</span>
-            </button>
-            <button type="button" class="def-role-pill" id="roleLoginAnalyst" onclick="defSelectRole('AI TELEMETRY ANALYST','ai-analyst@uav-defense.in','login')">
-              <i class="fa-solid fa-brain"></i><span>AI Analyst</span>
-            </button>
-          </div>
-        </div>
-
-        <form id="defLoginForm" onsubmit="event.preventDefault(); defHandleLogin();">
-          <input type="hidden" id="defLoginRole" value="FLIGHT TEST ENGR">
-
-          <div class="def-field-group">
-            <label class="def-field-label" for="defLoginUser">
-              <i class="fa-solid fa-user-check"></i> Operator ID / Call-sign
-            </label>
-            <input type="email" id="defLoginUser" class="def-input" placeholder="operator@uav-defense.in" value="operator@uav-defense.in" autocomplete="username" required>
-          </div>
-
-          <div class="def-field-group">
-            <label class="def-field-label" for="defLoginPass">
-              <i class="fa-solid fa-key"></i> Security Passkey
-            </label>
-            <div class="def-pwd-wrap">
-              <input type="password" id="defLoginPass" class="def-input" placeholder="Enter station security passkey" value="AeroTwin2026Secure!" autocomplete="current-password" required>
-              <i class="fa-regular fa-eye def-pwd-toggle" onclick="defTogglePwd('defLoginPass',this)" title="Show / Hide"></i>
-            </div>
-          </div>
-
-          <div class="def-options-row">
-            <label class="def-checkbox-label">
-              <input type="checkbox" id="defLoginRemember" checked> Remember station session
-            </label>
-            <span class="def-session-pill"><i class="fa-solid fa-satellite-dish"></i> GCS-NORTH-01</span>
-          </div>
-
-          <div id="defLoginStatus" class="def-status-box" style="display:none;"></div>
-
-          <button type="submit" class="def-primary-btn" id="defLoginSubmitBtn">
-            <i class="fa-solid fa-shield-halved"></i>
-            <span id="defLoginBtnText">AUTHENTICATE &amp; ENTER DASHBOARD</span>
-          </button>
-
-          <button type="button" class="def-secondary-btn" onclick="defQuickAccess()">
-            <i class="fa-solid fa-bolt"></i> Quick Demo Access — 1-Click Guest Pass
-          </button>
-        </form>
-      </div>
-
-      <!-- ─── REGISTER TAB ─── -->
-      <div class="def-auth-panel" id="defPanelRegister">
-        <div class="def-panel-heading">
-          <div class="def-panel-title">Register New Operator</div>
-          <div class="def-panel-sub">Create a new station account to access the AeroTwin-AI system</div>
-        </div>
-
-        <div class="def-sec-strip">
-          <i class="fa-solid fa-user-shield def-sec-icon"></i>
-          <div>
-            <div class="def-sec-label">NEW OPERATOR REGISTRATION</div>
-            <div class="def-sec-note">Account requires admin approval for full system access</div>
-          </div>
-        </div>
-
-        <!-- Role Selector for Register -->
-        <div class="def-role-section">
-          <div class="def-field-label"><i class="fa-solid fa-id-badge"></i> Requesting Role</div>
-          <div class="def-role-grid">
-            <button type="button" class="def-role-pill active" id="roleRegFlight" onclick="defSelectRole('FLIGHT TEST ENGR','','register')">
-              <i class="fa-solid fa-user-gear"></i><span>Flight Engr</span>
-            </button>
-            <button type="button" class="def-role-pill" id="roleRegCmd" onclick="defSelectRole('MISSION COMMANDER','','register')">
-              <i class="fa-solid fa-user-astronaut"></i><span>Commander</span>
-            </button>
-            <button type="button" class="def-role-pill" id="roleRegMaint" onclick="defSelectRole('MAINTENANCE LEAD','','register')">
-              <i class="fa-solid fa-wrench"></i><span>Maintenance</span>
-            </button>
-            <button type="button" class="def-role-pill" id="roleRegAnalyst" onclick="defSelectRole('AI TELEMETRY ANALYST','','register')">
-              <i class="fa-solid fa-brain"></i><span>AI Analyst</span>
-            </button>
-          </div>
-        </div>
-
-        <form id="defRegisterForm" onsubmit="event.preventDefault(); defHandleRegister();">
-          <input type="hidden" id="defRegisterRole" value="FLIGHT TEST ENGR">
-
-          <div class="def-field-row-2">
-            <div class="def-field-group">
-              <label class="def-field-label" for="defRegName">
-                <i class="fa-solid fa-user"></i> Full Name / Call-sign
-              </label>
-              <input type="text" id="defRegName" class="def-input" placeholder="Sqn Ldr R. Sharma" required>
-            </div>
-            <div class="def-field-group">
-              <label class="def-field-label" for="defRegBadge">
-                <i class="fa-solid fa-id-card"></i> Badge / Service No.
-              </label>
-              <input type="text" id="defRegBadge" class="def-input" placeholder="IN-SN-20240001" required>
-            </div>
-          </div>
-
-          <div class="def-field-group">
-            <label class="def-field-label" for="defRegEmail">
-              <i class="fa-solid fa-envelope"></i> Official Email ID
-            </label>
-            <input type="email" id="defRegEmail" class="def-input" placeholder="name@uav-defense.in" autocomplete="email" required>
-          </div>
-
-          <div class="def-field-row-2">
-            <div class="def-field-group">
-              <label class="def-field-label" for="defRegPass">
-                <i class="fa-solid fa-key"></i> Set Passkey
-              </label>
-              <div class="def-pwd-wrap">
-                <input type="password" id="defRegPass" class="def-input" placeholder="Min 8 chars" autocomplete="new-password" required>
-                <i class="fa-regular fa-eye def-pwd-toggle" onclick="defTogglePwd('defRegPass',this)"></i>
-              </div>
-            </div>
-            <div class="def-field-group">
-              <label class="def-field-label" for="defRegPassConfirm">
-                <i class="fa-solid fa-key"></i> Confirm Passkey
-              </label>
-              <div class="def-pwd-wrap">
-                <input type="password" id="defRegPassConfirm" class="def-input" placeholder="Re-enter passkey" autocomplete="new-password" required>
-                <i class="fa-regular fa-eye def-pwd-toggle" onclick="defTogglePwd('defRegPassConfirm',this)"></i>
-              </div>
-            </div>
-          </div>
-
-          <div id="defRegisterStatus" class="def-status-box" style="display:none;"></div>
-
-          <button type="submit" class="def-primary-btn" id="defRegisterSubmitBtn">
-            <i class="fa-solid fa-user-plus"></i>
-            <span id="defRegBtnText">REGISTER &amp; REQUEST ACCESS</span>
-          </button>
-
-          <div class="def-reg-note">
-            Already have an account?
-            <button type="button" class="def-link-btn" onclick="switchDefAuthTab('login')">Sign In here</button>
-          </div>
-        </form>
-      </div>
-
-    </div><!-- /def-auth-right -->
-  </div><!-- /defenseAuthScreen -->
 
   <!-- Legacy login modal (kept for header operator pill re-auth) -->
   <div class="modal-overlay" id="loginModal" style="display:none;">

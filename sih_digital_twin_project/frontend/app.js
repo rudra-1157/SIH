@@ -3386,29 +3386,36 @@ document.addEventListener('DOMContentLoaded', () => {
     .then(r => setConnectionStatus(r.ok))
     .catch(() => setConnectionStatus(false));
 
-  // 12. Defense Session State Management
-  let hasAuthenticatedSession = false;
+// Lock Station / Logout
+window.lockStation = function() {
+  showDefenseAuth(true);
+  showToast(
+    "Ground Station Locked",
+    "Dashboard access locked. Re-authenticate to access telemetry uplink.",
+    "info"
+  );
+};
+
+  // 12. Defense Authentication Entry Flow (Always shows on entry until user logs in)
   try {
     const rawSaved = localStorage.getItem('aerotwin_operator') || sessionStorage.getItem('aerotwin_operator');
     if (rawSaved) {
       const saved = JSON.parse(rawSaved);
-      if (saved.user && saved.role) {
-        currentUserSession = saved;
-        const headerName = document.getElementById('headerOpName');
-        if (headerName) headerName.textContent = saved.user;
-        const headerRole = document.getElementById('headerOpRole');
-        if (headerRole) headerRole.textContent = saved.role;
-        hasAuthenticatedSession = true;
+      if (saved.user) {
+        const loginUser = document.getElementById('defLoginUser');
+        if (loginUser) loginUser.value = saved.user;
+        const legacyUser = document.getElementById('loginUser');
+        if (legacyUser) legacyUser.value = saved.user;
+      }
+      if (saved.role) {
+        defSelectRole(saved.role, saved.user, 'login');
       }
     }
   } catch (e) {
     console.warn("Session restore error", e);
   }
 
-  if (hasAuthenticatedSession) {
-    showDefenseAuth(false);
-  } else {
-    // Show mandatory defense authentication screen blocking dashboard
-    showDefenseAuth(true);
-  }
+  // Force Defense Authentication portal on entering website
+  showDefenseAuth(true);
 });
+
