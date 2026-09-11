@@ -2927,8 +2927,18 @@ async function scoreManualTelemetry() {
 }
 
 // ==========================================================================
-// 11. LOGIN, AUTHENTICATION & TOAST NOTIFICATIONS
+// 11. DEFENSE AUTHENTICATION, REGISTRATION & SESSION MANAGEMENT
 // ==========================================================================
+
+let currentUserSession = null;
+
+function showDefenseAuth(show) {
+  const authScreen = document.getElementById('defenseAuthScreen');
+  if (authScreen) {
+    authScreen.style.display = show ? 'flex' : 'none';
+  }
+}
+
 function toggleLoginModal(show) {
   const modal = document.getElementById('loginModal');
   if (modal) {
@@ -2942,13 +2952,210 @@ function toggleLoginModal(show) {
   }
 }
 
+window.switchDefAuthTab = function(tab) {
+  const loginTab = document.getElementById('defTabLogin');
+  const regTab = document.getElementById('defTabRegister');
+  const loginPanel = document.getElementById('defPanelLogin');
+  const regPanel = document.getElementById('defPanelRegister');
+
+  if (tab === 'login') {
+    loginTab?.classList.add('active');
+    regTab?.classList.remove('active');
+    loginPanel?.classList.add('active');
+    regPanel?.classList.remove('active');
+  } else {
+    regTab?.classList.add('active');
+    loginTab?.classList.remove('active');
+    regPanel?.classList.add('active');
+    loginPanel?.classList.remove('active');
+  }
+};
+
+window.defSelectRole = function(roleName, defaultUsername, panelType = 'login') {
+  if (panelType === 'login') {
+    const roleInput = document.getElementById('defLoginRole');
+    const userInput = document.getElementById('defLoginUser');
+    if (roleInput) roleInput.value = roleName;
+    if (userInput && defaultUsername) userInput.value = defaultUsername;
+
+    const pills = [
+      { id: 'roleLoginFlight', name: 'FLIGHT' },
+      { id: 'roleLoginCmd', name: 'COMMANDER' },
+      { id: 'roleLoginMaint', name: 'MAINTENANCE' },
+      { id: 'roleLoginAnalyst', name: 'ANALYST' }
+    ];
+    pills.forEach(p => {
+      const el = document.getElementById(p.id);
+      if (el) el.classList.toggle('active', roleName.includes(p.name));
+    });
+  } else {
+    const roleInput = document.getElementById('defRegisterRole');
+    if (roleInput) roleInput.value = roleName;
+
+    const pills = [
+      { id: 'roleRegFlight', name: 'FLIGHT' },
+      { id: 'roleRegCmd', name: 'COMMANDER' },
+      { id: 'roleRegMaint', name: 'MAINTENANCE' },
+      { id: 'roleRegAnalyst', name: 'ANALYST' }
+    ];
+    pills.forEach(p => {
+      const el = document.getElementById(p.id);
+      if (el) el.classList.toggle('active', roleName.includes(p.name));
+    });
+  }
+};
+
+window.defTogglePwd = function(inputId, iconEl) {
+  const input = document.getElementById(inputId);
+  if (input) {
+    const isPwd = input.type === 'password';
+    input.type = isPwd ? 'text' : 'password';
+    if (iconEl) {
+      iconEl.className = isPwd ? 'fa-regular fa-eye-slash def-pwd-toggle' : 'fa-regular fa-eye def-pwd-toggle';
+    }
+  }
+};
+
+window.defHandleLogin = function() {
+  const user = document.getElementById('defLoginUser')?.value.trim() || 'operator@uav-defense.in';
+  const pass = document.getElementById('defLoginPass')?.value || '';
+  const role = document.getElementById('defLoginRole')?.value || 'FLIGHT TEST ENGR';
+  const remember = document.getElementById('defLoginRemember')?.checked ?? true;
+  const statusBox = document.getElementById('defLoginStatus');
+  const submitBtn = document.getElementById('defLoginSubmitBtn');
+  const btnText = document.getElementById('defLoginBtnText');
+
+  if (!pass) {
+    if (statusBox) {
+      statusBox.className = 'def-status-box error';
+      statusBox.style.display = 'flex';
+      statusBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Security passkey is required.';
+    }
+    return;
+  }
+
+  if (submitBtn) submitBtn.disabled = true;
+  if (btnText) btnText.textContent = 'AUTHENTICATING TELEMETRY UPLINK...';
+  if (statusBox) {
+    statusBox.className = 'def-status-box loading';
+    statusBox.style.display = 'flex';
+    statusBox.innerHTML = '<i class="fa-solid fa-satellite-dish fa-spin"></i> Verifying Ground Station credentials &amp; clearance level...';
+  }
+
+  setTimeout(() => {
+    // Save session
+    currentUserSession = { user, role, timestamp: Date.now() };
+    try {
+      if (remember) {
+        localStorage.setItem('aerotwin_operator', JSON.stringify(currentUserSession));
+      } else {
+        sessionStorage.setItem('aerotwin_operator', JSON.stringify(currentUserSession));
+      }
+    } catch (e) {
+      console.warn("Storage error", e);
+    }
+
+    // Update Header
+    const headerName = document.getElementById('headerOpName');
+    const headerRole = document.getElementById('headerOpRole');
+    if (headerName) headerName.textContent = user;
+    if (headerRole) headerRole.textContent = role;
+
+    // Reset button
+    if (submitBtn) submitBtn.disabled = false;
+    if (btnText) btnText.textContent = 'AUTHENTICATE & ENTER DASHBOARD';
+
+    // Dismiss Auth Screen
+    showDefenseAuth(false);
+
+    // Direct to Home
+    navigateToPage('twin-engine');
+
+    // Notify
+    showToast(
+      "Ground Station Uplink Active",
+      `Authenticated as <strong>${role}</strong> (${user}). Access granted to DRDO-ADE telemetry.`,
+      "success"
+    );
+
+    // Start simulation if not active
+    if (ALL_SYNTHETIC_DATA.length > 0 && !liveMissionActive) {
+      simulateNewMission();
+    }
+  }, 450);
+};
+
+window.defQuickAccess = function() {
+  defSelectRole('FLIGHT TEST ENGR', 'operator@uav-defense.in', 'login');
+  const pass = document.getElementById('defLoginPass');
+  if (pass) pass.value = 'AeroTwin2026Secure!';
+  defHandleLogin();
+};
+
+window.defHandleRegister = function() {
+  const name = document.getElementById('defRegName')?.value.trim();
+  const badge = document.getElementById('defRegBadge')?.value.trim();
+  const email = document.getElementById('defRegEmail')?.value.trim();
+  const pass = document.getElementById('defRegPass')?.value;
+  const passConfirm = document.getElementById('defRegPassConfirm')?.value;
+  const role = document.getElementById('defRegisterRole')?.value || 'FLIGHT TEST ENGR';
+  const statusBox = document.getElementById('defRegisterStatus');
+  const submitBtn = document.getElementById('defRegisterSubmitBtn');
+  const btnText = document.getElementById('defRegBtnText');
+
+  if (pass !== passConfirm) {
+    if (statusBox) {
+      statusBox.className = 'def-status-box error';
+      statusBox.style.display = 'flex';
+      statusBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Security passkeys do not match.';
+    }
+    return;
+  }
+
+  if (submitBtn) submitBtn.disabled = true;
+  if (btnText) btnText.textContent = 'TRANSMITTING REGISTRATION...';
+  if (statusBox) {
+    statusBox.className = 'def-status-box loading';
+    statusBox.style.display = 'flex';
+    statusBox.innerHTML = '<i class="fa-solid fa-satellite-dish fa-spin"></i> Registering badge with Defense Ground Station registry...';
+  }
+
+  setTimeout(() => {
+    currentUserSession = { user: email || name, role, badge, timestamp: Date.now() };
+    try {
+      localStorage.setItem('aerotwin_operator', JSON.stringify(currentUserSession));
+    } catch (e) {}
+
+    const headerName = document.getElementById('headerOpName');
+    const headerRole = document.getElementById('headerOpRole');
+    if (headerName) headerName.textContent = name || email;
+    if (headerRole) headerRole.textContent = role;
+
+    if (submitBtn) submitBtn.disabled = false;
+    if (btnText) btnText.textContent = 'REGISTER & REQUEST ACCESS';
+
+    showDefenseAuth(false);
+    navigateToPage('twin-engine');
+
+    showToast(
+      "Registration Successful",
+      `Welcome <strong>${name || email}</strong> (${role}). Clearance approved.`,
+      "success"
+    );
+
+    if (ALL_SYNTHETIC_DATA.length > 0 && !liveMissionActive) {
+      simulateNewMission();
+    }
+  }, 600);
+};
+
+// Legacy Modal Support
 window.selectLoginRole = function(roleName, defaultUsername) {
   const roleInput = document.getElementById('loginRole');
   const userInput = document.getElementById('loginUser');
   if (roleInput) roleInput.value = roleName;
   if (userInput && defaultUsername) userInput.value = defaultUsername;
 
-  // Update active pill styling
   document.querySelectorAll('.role-preset-pill').forEach(btn => {
     const text = btn.textContent.trim().toLowerCase();
     const match = (roleName.includes('FLIGHT') && text.includes('flight')) ||
@@ -2973,20 +3180,17 @@ window.fakeLogin = function() {
   const statusBox = document.getElementById('loginStatusMsg');
   const submitBtn = document.getElementById('btnLoginSubmit');
 
-  // Loading state on button & status box
   if (submitBtn) {
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Authenticating Telemetry Uplink...';
+    submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Authenticating...';
   }
   if (statusBox) {
     statusBox.className = 'login-status-box loading';
     statusBox.style.display = 'block';
-    statusBox.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> Verifying Ground Station passkey &amp; security clearance...';
+    statusBox.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> Verifying Ground Station passkey...';
   }
 
-  // Smooth authentic delay for tactical defense UI feel
   setTimeout(() => {
-    // 1. Save session
     const sessionData = { user, role, timestamp: Date.now() };
     try {
       if (remember) {
@@ -2994,38 +3198,27 @@ window.fakeLogin = function() {
       } else {
         sessionStorage.setItem('aerotwin_operator', JSON.stringify(sessionData));
       }
-    } catch (e) {
-      console.warn("Storage unavailable", e);
-    }
+    } catch (e) {}
 
-    // 2. Update Header Profile Display
     const headerName = document.getElementById('headerOpName');
     const headerRole = document.getElementById('headerOpRole');
     if (headerName) headerName.textContent = user;
     if (headerRole) headerRole.textContent = role;
 
-    // 3. Reset Button & Close Modal
     if (submitBtn) {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = '<span class="btn-login-text"><i class="fa-solid fa-right-to-bracket"></i> AUTHENTICATE &amp; ENTER HOMEPAGE</span>';
+      submitBtn.innerHTML = '<span class="btn-login-text"><i class="fa-solid fa-right-to-bracket"></i> AUTHENTICATE</span>';
     }
     toggleLoginModal(false);
-
-    // 4. Direct user to Homepage (Twin Engine)
+    showDefenseAuth(false);
     navigateToPage('twin-engine');
 
-    // 5. Toast Notification
     showToast(
-      "Ground Station Uplink Connected",
-      `Authenticated as <strong>${role}</strong> (${user}). Directed to Homepage.`,
+      "Operator Session Updated",
+      `Active operator changed to <strong>${role}</strong> (${user}).`,
       "success"
     );
-
-    // 6. If data is ready and simulation wasn't playing, start simulation
-    if (ALL_SYNTHETIC_DATA.length > 0 && !liveMissionActive) {
-      simulateNewMission();
-    }
-  }, 450);
+  }, 400);
 };
 
 window.togglePasswordVisibility = function() {
@@ -3093,11 +3286,14 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('hashchange', handleHashChange);
   handleHashChange();
 
-  // 3. Live Clock
+  // 3. Live Clocks (Dashboard + Defense Auth Screen)
   setInterval(() => {
-    const clock = document.getElementById('clock');
     const now = new Date();
-    if (clock) clock.textContent = `${now.toLocaleTimeString()} UTC`;
+    const timeStr = `${now.toLocaleTimeString()} UTC`;
+    const clock = document.getElementById('clock');
+    if (clock) clock.textContent = timeStr;
+    const defClock = document.getElementById('defAuthClock');
+    if (defClock) defClock.textContent = timeStr;
   }, 1000);
 
   // 4. Metric Cards & 3D Picking
@@ -3168,10 +3364,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 9. Modals & Scoring
-  document.getElementById('openLoginBtn')?.addEventListener('click', () => toggleLoginModal(true));
+  document.getElementById('openLoginBtn')?.addEventListener('click', () => {
+    showDefenseAuth(true);
+  });
   document.getElementById('closeLoginModal')?.addEventListener('click', () => {
     toggleLoginModal(false);
-    navigateToPage('twin-engine');
   });
   document.getElementById('scoreBtn')?.addEventListener('click', scoreManualTelemetry);
 
@@ -3189,26 +3386,29 @@ document.addEventListener('DOMContentLoaded', () => {
     .then(r => setConnectionStatus(r.ok))
     .catch(() => setConnectionStatus(false));
 
-  // 12. Restore Saved Session (if any) or Prompt Login on Page Entry
+  // 12. Defense Session State Management
+  let hasAuthenticatedSession = false;
   try {
     const rawSaved = localStorage.getItem('aerotwin_operator') || sessionStorage.getItem('aerotwin_operator');
     if (rawSaved) {
       const saved = JSON.parse(rawSaved);
-      if (saved.user) {
-        document.getElementById('loginUser').value = saved.user;
+      if (saved.user && saved.role) {
+        currentUserSession = saved;
         const headerName = document.getElementById('headerOpName');
         if (headerName) headerName.textContent = saved.user;
-      }
-      if (saved.role) {
-        selectLoginRole(saved.role, saved.user);
         const headerRole = document.getElementById('headerOpRole');
         if (headerRole) headerRole.textContent = saved.role;
+        hasAuthenticatedSession = true;
       }
     }
   } catch (e) {
     console.warn("Session restore error", e);
   }
 
-  // Pop login modal immediately on entering the website
-  toggleLoginModal(true);
+  if (hasAuthenticatedSession) {
+    showDefenseAuth(false);
+  } else {
+    // Show mandatory defense authentication screen blocking dashboard
+    showDefenseAuth(true);
+  }
 });

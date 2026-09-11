@@ -90,3 +90,14 @@ for candidate in data_candidates:
     if os.path.isdir(candidate):
         app.mount("/data", StaticFiles(directory=candidate), name="data")
         break
+
+# --- serve frontend ---
+frontend_candidates = ["frontend", "../frontend", "sih_digital_twin_project/frontend"]
+for f_cand in frontend_candidates:
+    if os.path.isdir(f_cand):
+        @app.get("/")
+        def serve_index():
+            return FileResponse(os.path.join(f_cand, "index.html"))
+        app.mount("/", StaticFiles(directory=f_cand, html=True), name="frontend")
+        break
+
