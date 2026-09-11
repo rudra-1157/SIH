@@ -1782,6 +1782,8 @@ async function loadSyntheticDataset() {
     }
 
     populateScenarioDropdown();
+    // Auto-start initial simulation now that data is ready
+    simulateNewMission();
   } catch (err) {
     console.error("Failed to load synthetic dataset", err);
     if (statusEl) {
@@ -2095,6 +2097,11 @@ function getMissionPhase(cycleIdx, totalCycles, altitudeM, throttlePct) {
 }
 
 async function liveMissionTick() {
+  // Guard: bail out immediately if a concurrent async invocation already stopped the mission.
+  // setInterval does not wait for async functions, so multiple ticks can overlap during
+  // an API call — this prevents duplicate abort/complete blocks from firing.
+  if (!liveMissionActive) return;
+
   if (liveCycleCount >= ACTIVE_UNIT_DATA.length) {
     clearInterval(liveMissionTimer);
     liveMissionActive = false;
@@ -2398,10 +2405,12 @@ async function liveMissionTick() {
 
     // Immediate Abort / Termination check if critical condition detected
     if (decisionObj.recommendation === 'CRITICAL → ABORT') {
-      clearInterval(liveMissionTimer);
-      liveMissionTimer = null;
+      // IMPORTANT: set liveMissionActive = false FIRST (synchronously) so any other
+      // concurrent async tick invocations see it and return immediately at the guard above.
       liveMissionActive = false;
       isPlaying = false;
+      clearInterval(liveMissionTimer);
+      liveMissionTimer = null;
 
       const phaseSpan = document.getElementById('currentMissionPhase');
       if (phaseSpan) phaseSpan.textContent = 'EMERGENCY ABORT';
@@ -3047,10 +3056,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Check health and run initial simulation
+  // Check backend health
   fetch(`${API_BASE}/api/health`)
     .then(r => setConnectionStatus(r.ok))
     .catch(() => setConnectionStatus(false));
 
-  simulateNewMission();
+  // Note: simulateNewMission() is called automatically once loadSyntheticDataset() finishes loading.
 });
