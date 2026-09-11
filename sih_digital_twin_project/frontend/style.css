@@ -1,42 +1,46 @@
 /* ==========================================================================
-   AEROTWIN-AI PROTOTYPE — MULTI-PAGE DASHBOARD STYLESHEET
-   Fixed Vertical Left Sidebar, Consistent Header, Dark Aerospace Aesthetics
+   AEROTWIN-AI PROTOTYPE — DEFENSE & AEROSPACE DASHBOARD STYLESHEET
+   Professional Tactical Command Center Theme, Radar Grid, Glassmorphism
    ========================================================================== */
 
 :root {
-  --bg-primary: #0B0E14;
-  --bg-secondary: #121824;
-  --bg-sidebar: #0E131F;
-  --bg-card: #151C2A;
-  --bg-card-hover: #1C2536;
-  --bg-card-border: #263347;
-  --bg-glass: #0E131F;
+  /* Aerospace Command Center Palette */
+  --bg-primary: #06090F;
+  --bg-secondary: #0A0F18;
+  --bg-sidebar: #080D15;
+  --bg-card: #0D1420;
+  --bg-card-hover: #121C2B;
+  --bg-card-border: #172436;
+  --bg-card-border-glow: rgba(0, 229, 255, 0.35);
+  --bg-glass: rgba(8, 14, 23, 0.88);
+  --bg-glass-strong: rgba(6, 10, 16, 0.95);
 
-  --accent-cyan: #38BDF8;
-  --accent-blue: #3B82F6;
-  --accent-blue-glow: transparent;
-  --accent-neon-blue: #2563EB;
+  --accent-cyan: #00E5FF;
+  --accent-sky: #38BDF8;
+  --accent-blue: #2563EB;
+  --accent-blue-glow: rgba(37, 99, 235, 0.45);
+  --accent-neon-blue: #00D2FF;
 
   --status-green: #10B981;
-  --status-green-glow: transparent;
+  --status-green-glow: rgba(16, 185, 129, 0.4);
   --status-yellow: #F59E0B;
-  --status-orange: #F97316;
+  --status-orange: #FB923C;
   --status-red: #EF4444;
-  --status-red-glow: transparent;
+  --status-red-glow: rgba(239, 68, 68, 0.45);
 
-  --text-main: #F1F5F9;
+  --text-main: #F8FAFC;
   --text-secondary: #94A3B8;
   --text-muted: #64748B;
-  --text-dim: #475569;
+  --text-dim: #334155;
 
   --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-tech: 'Rajdhani', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 6px;
-  --radius-xl: 8px;
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
 
   --sidebar-width: 240px;
 }
@@ -56,7 +60,14 @@ html, body {
   font-size: 13px;
   line-height: 1.4;
   overflow-x: hidden;
-  background-image: none;
+  /* Tactical Aerospace Telemetry Grid Background */
+  background-image: 
+    radial-gradient(ellipse 90% 50% at 50% -5%, rgba(0, 229, 255, 0.07), transparent 70%),
+    radial-gradient(circle at 85% 95%, rgba(37, 99, 235, 0.05), transparent 50%),
+    linear-gradient(rgba(0, 229, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+  background-attachment: fixed;
 }
 
 .app-shell {
@@ -624,10 +635,22 @@ html, body {
   position: relative;
   width: 100%;
   height: 440px;
-  background: radial-gradient(circle at center, #0C1A28 0%, #03080E 100%);
-  border: 1px solid #182C3F;
+  background: radial-gradient(circle at 50% 40%, #0D1B2A 0%, #040810 100%);
+  border: 1px solid rgba(0, 229, 255, 0.25);
   border-radius: var(--radius-md);
   overflow: hidden;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8), 0 4px 25px rgba(0, 0, 0, 0.6);
+}
+.twin-hero-viewport::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.5), transparent);
+  pointer-events: none;
+  z-index: 10;
 }
 
 .three-viewport {
@@ -1507,14 +1530,35 @@ input[type=range]::-webkit-slider-thumb {
 .rep-table th { color: var(--text-muted); font-size: 10px; }
 .rep-table td { color: #FFF; font-family: var(--font-mono); }
 
+/* Modals & Overlays */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(4, 7, 12, 0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  background-image: 
+    radial-gradient(circle at 50% 30%, rgba(0, 229, 255, 0.08), transparent 60%),
+    linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 4px;
+}
+
 /* Upgraded Defense Ground Station Login Modal */
 .login-card-modal {
   width: 100%;
   max-width: 480px;
-  background: #08121C;
-  border: 1px solid rgba(0, 210, 255, 0.35);
+  background: linear-gradient(180deg, #0C1522 0%, #070D16 100%);
+  border: 1px solid rgba(0, 229, 255, 0.3);
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 210, 255, 0.15);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.92), 0 0 35px rgba(0, 229, 255, 0.18);
   overflow: hidden;
   animation: modal-slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
@@ -1525,45 +1569,54 @@ input[type=range]::-webkit-slider-thumb {
   top: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #00D2FF, #3B82F6, transparent);
+  height: 2.5px;
+  background: linear-gradient(90deg, transparent, #00E5FF, #2563EB, transparent);
+  box-shadow: 0 0 10px #00E5FF;
 }
 .login-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #0B1724;
+  background: #0E1A29;
   padding: 14px 18px;
-  border-bottom: 1px solid #162B3F;
+  border-bottom: 1px solid #1A2D42;
 }
 .login-sec-badge {
   font-family: var(--font-tech);
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--accent-cyan);
   display: flex;
   align-items: center;
   gap: 8px;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
 }
 .close-modal-btn {
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: 20px;
+  font-size: 22px;
   cursor: pointer;
   line-height: 1;
-  transition: color 0.2s;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
 }
 .close-modal-btn:hover {
   color: #FFF;
+  background: rgba(255, 255, 255, 0.08);
 }
 .login-modal-body {
-  padding: 20px 22px;
+  padding: 22px 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: radial-gradient(circle at top right, rgba(0, 210, 255, 0.04), transparent 70%);
+  background: radial-gradient(circle at top right, rgba(0, 229, 255, 0.05), transparent 70%);
 }
 .login-brand-strip {
   display: flex;
@@ -1574,30 +1627,32 @@ input[type=range]::-webkit-slider-thumb {
   width: 44px;
   height: 44px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #1D4ED8, #00D2FF);
+  background: linear-gradient(135deg, #1D4ED8, #00E5FF);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 22px;
   color: #FFF;
-  box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.45);
 }
 .login-brand-strip h3 {
-  font-size: 19px;
+  font-family: var(--font-tech);
+  font-size: 20px;
   font-weight: 700;
-  color: #FFF;
-  letter-spacing: 0.02em;
+  color: #F8FAFC;
+  letter-spacing: 0.04em;
 }
 .login-brand-strip p {
   font-size: 11.5px;
   color: var(--text-muted);
+  letter-spacing: 0.01em;
 }
 .login-sec-banner {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(0, 210, 255, 0.05);
-  border: 1px solid rgba(0, 210, 255, 0.2);
+  background: linear-gradient(90deg, rgba(0, 229, 255, 0.08) 0%, rgba(37, 99, 235, 0.04) 100%);
+  border: 1px solid rgba(0, 229, 255, 0.25);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
 }
@@ -1612,9 +1667,9 @@ input[type=range]::-webkit-slider-thumb {
 }
 .sec-tag {
   font-family: var(--font-tech);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--accent-cyan);
 }
 .sec-sub {
@@ -1678,31 +1733,39 @@ input[type=range]::-webkit-slider-thumb {
 .input-group {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   margin-bottom: 12px;
 }
 .input-group label {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-secondary);
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 6px;
+  letter-spacing: 0.02em;
+}
+.input-group label i {
+  color: var(--accent-cyan);
 }
 .input-group input {
-  background: #050B12;
-  border: 1px solid #1C334A;
+  background: #050B14;
+  border: 1px solid #182A3E;
   border-radius: var(--radius-sm);
-  color: #FFF;
-  padding: 9px 12px;
+  color: #FFFFFF;
+  padding: 10px 14px;
   font-size: 12.5px;
   outline: none;
   font-family: var(--font-mono);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.2s ease;
+}
+.input-group input:hover {
+  border-color: rgba(0, 229, 255, 0.4);
 }
 .input-group input:focus {
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 10px rgba(0, 210, 255, 0.25);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.3), inset 0 0 8px rgba(0, 229, 255, 0.05);
+  background: #07101C;
 }
 .pwd-wrap {
   position: relative;
@@ -1711,53 +1774,62 @@ input[type=range]::-webkit-slider-thumb {
 }
 .pwd-wrap input {
   width: 100%;
-  padding-right: 36px;
+  padding-right: 38px;
 }
 .toggle-pwd {
   position: absolute;
   right: 12px;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 13px;
-  transition: color 0.2s;
+  font-size: 14px;
+  transition: all 0.2s;
+  padding: 4px;
 }
 .toggle-pwd:hover {
   color: var(--accent-cyan);
+  transform: scale(1.1);
 }
 .login-options-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .checkbox-label {
   color: var(--text-secondary);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   cursor: pointer;
   user-select: none;
+}
+.checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent-cyan);
 }
 .station-id-pill {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--accent-cyan);
-  background: rgba(0, 210, 255, 0.08);
-  border: 1px solid rgba(0, 210, 255, 0.2);
-  padding: 2px 7px;
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  padding: 3px 8px;
   border-radius: 3px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  letter-spacing: 0.04em;
 }
 
 .login-status-box {
-  padding: 8px 12px;
+  padding: 9px 14px;
   border-radius: var(--radius-sm);
   font-size: 11.5px;
   margin-bottom: 12px;
   animation: fadeIn 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .login-status-box.error {
   background: rgba(239, 68, 68, 0.15);
@@ -1777,44 +1849,48 @@ input[type=range]::-webkit-slider-thumb {
 
 .btn-primary-login {
   width: 100%;
-  background: linear-gradient(135deg, #1D4ED8, #2563EB);
+  background: linear-gradient(135deg, #1D4ED8 0%, #0284C7 100%);
   color: #FFFFFF;
-  border: 1px solid #3B82F6;
+  border: 1px solid #38BDF8;
   border-radius: var(--radius-sm);
-  padding: 11px;
-  font-size: 13px;
+  padding: 12px;
+  font-family: var(--font-tech);
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 18px rgba(2, 132, 199, 0.35);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 .btn-primary-login:hover {
-  background: linear-gradient(135deg, #2563EB, #3B82F6);
-  box-shadow: 0 0 16px rgba(59, 130, 246, 0.6);
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #2563EB 0%, #00E5FF 100%);
+  color: #FFFFFF;
+  border-color: #00E5FF;
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.6);
+  transform: translateY(-1.5px);
 }
 .btn-primary-login:active {
   transform: translateY(0);
 }
 .btn-primary-login:disabled {
-  opacity: 0.6;
+  opacity: 0.65;
   cursor: not-allowed;
   transform: none;
 }
 
 .btn-guest-login {
   width: 100%;
-  margin-top: 8px;
-  background: rgba(6, 13, 21, 0.7);
-  border: 1px dashed rgba(0, 210, 255, 0.3);
+  margin-top: 10px;
+  background: rgba(8, 16, 26, 0.7);
+  border: 1px dashed rgba(0, 229, 255, 0.35);
   color: var(--accent-cyan);
   border-radius: var(--radius-sm);
-  padding: 8px;
+  padding: 9px;
   font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
@@ -1822,12 +1898,13 @@ input[type=range]::-webkit-slider-thumb {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
 }
 .btn-guest-login:hover {
-  background: rgba(0, 210, 255, 0.1);
+  background: rgba(0, 229, 255, 0.1);
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 10px rgba(0, 210, 255, 0.2);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.25);
+  transform: translateY(-1px);
 }
 
 /* Toast Notifications */
