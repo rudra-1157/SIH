@@ -2926,22 +2926,146 @@ async function scoreManualTelemetry() {
 }
 
 // ==========================================================================
-// 11. LOGIN & MODAL TOGGLES
+// 11. LOGIN, AUTHENTICATION & TOAST NOTIFICATIONS
 // ==========================================================================
 function toggleLoginModal(show) {
   const modal = document.getElementById('loginModal');
-  if (modal) modal.style.display = show ? 'flex' : 'none';
+  if (modal) {
+    modal.style.display = show ? 'flex' : 'none';
+    if (show) {
+      const statusBox = document.getElementById('loginStatusMsg');
+      if (statusBox) statusBox.style.display = 'none';
+      const userField = document.getElementById('loginUser');
+      if (userField) setTimeout(() => userField.focus(), 100);
+    }
+  }
 }
 
+window.selectLoginRole = function(roleName, defaultUsername) {
+  const roleInput = document.getElementById('loginRole');
+  const userInput = document.getElementById('loginUser');
+  if (roleInput) roleInput.value = roleName;
+  if (userInput && defaultUsername) userInput.value = defaultUsername;
+
+  // Update active pill styling
+  document.querySelectorAll('.role-preset-pill').forEach(btn => {
+    const text = btn.textContent.trim().toLowerCase();
+    const match = (roleName.includes('FLIGHT') && text.includes('flight')) ||
+                  (roleName.includes('COMMANDER') && text.includes('commander')) ||
+                  (roleName.includes('MAINTENANCE') && text.includes('maintenance')) ||
+                  (roleName.includes('ANALYST') && text.includes('analyst'));
+    btn.classList.toggle('active', match);
+  });
+};
+
+window.quickGuestLogin = function() {
+  selectLoginRole('FLIGHT TEST ENGR', 'operator@uav-defense.in');
+  const pass = document.getElementById('loginPass');
+  if (pass) pass.value = 'AeroTwin2026Secure!';
+  fakeLogin();
+};
+
 window.fakeLogin = function() {
-  const user = document.getElementById('loginUser').value;
-  alert(`Authenticated as ${user}. Ground Station session active.`);
-  toggleLoginModal(false);
+  const user = document.getElementById('loginUser')?.value.trim() || 'operator@uav-defense.in';
+  const role = document.getElementById('loginRole')?.value || 'FLIGHT TEST ENGR';
+  const remember = document.getElementById('loginRemember')?.checked ?? true;
+  const statusBox = document.getElementById('loginStatusMsg');
+  const submitBtn = document.getElementById('btnLoginSubmit');
+
+  // Loading state on button & status box
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Authenticating Telemetry Uplink...';
+  }
+  if (statusBox) {
+    statusBox.className = 'login-status-box loading';
+    statusBox.style.display = 'block';
+    statusBox.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> Verifying Ground Station passkey &amp; security clearance...';
+  }
+
+  // Smooth authentic delay for tactical defense UI feel
+  setTimeout(() => {
+    // 1. Save session
+    const sessionData = { user, role, timestamp: Date.now() };
+    try {
+      if (remember) {
+        localStorage.setItem('aerotwin_operator', JSON.stringify(sessionData));
+      } else {
+        sessionStorage.setItem('aerotwin_operator', JSON.stringify(sessionData));
+      }
+    } catch (e) {
+      console.warn("Storage unavailable", e);
+    }
+
+    // 2. Update Header Profile Display
+    const headerName = document.getElementById('headerOpName');
+    const headerRole = document.getElementById('headerOpRole');
+    if (headerName) headerName.textContent = user;
+    if (headerRole) headerRole.textContent = role;
+
+    // 3. Reset Button & Close Modal
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span class="btn-login-text"><i class="fa-solid fa-right-to-bracket"></i> AUTHENTICATE &amp; ENTER HOMEPAGE</span>';
+    }
+    toggleLoginModal(false);
+
+    // 4. Direct user to Homepage (Twin Engine)
+    navigateToPage('twin-engine');
+
+    // 5. Toast Notification
+    showToast(
+      "Ground Station Uplink Connected",
+      `Authenticated as <strong>${role}</strong> (${user}). Directed to Homepage.`,
+      "success"
+    );
+
+    // 6. If data is ready and simulation wasn't playing, start simulation
+    if (ALL_SYNTHETIC_DATA.length > 0 && !liveMissionActive) {
+      simulateNewMission();
+    }
+  }, 450);
 };
 
 window.togglePasswordVisibility = function() {
   const input = document.getElementById('loginPass');
-  input.type = input.type === 'password' ? 'text' : 'password';
+  if (input) {
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
+};
+
+window.showToast = function(title, message, type = 'info') {
+  const container = document.getElementById('appToastContainer');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `aerotwin-toast toast-${type}`;
+  
+  const iconMap = {
+    success: 'fa-solid fa-circle-check',
+    error: 'fa-solid fa-triangle-exclamation',
+    info: 'fa-solid fa-shield-halved'
+  };
+  const icon = iconMap[type] || iconMap.info;
+
+  toast.innerHTML = `
+    <i class="${icon} toast-icon"></i>
+    <div class="toast-content">
+      <div class="toast-title">${title}</div>
+      <div class="toast-msg">${message}</div>
+    </div>
+    <button class="toast-close-btn" onclick="this.parentElement.remove()">&times;</button>
+  `;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    if (toast.parentElement) {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(60px)';
+      setTimeout(() => toast.remove(), 300);
+    }
+  }, 4500);
 };
 
 // ==========================================================================
@@ -3044,7 +3168,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 9. Modals & Scoring
   document.getElementById('openLoginBtn')?.addEventListener('click', () => toggleLoginModal(true));
-  document.getElementById('closeLoginModal')?.addEventListener('click', () => toggleLoginModal(false));
+  document.getElementById('closeLoginModal')?.addEventListener('click', () => {
+    toggleLoginModal(false);
+    navigateToPage('twin-engine');
+  });
   document.getElementById('scoreBtn')?.addEventListener('click', scoreManualTelemetry);
 
   // 10. Alert Filters
@@ -3056,10 +3183,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Check backend health
+  // 11. Check Backend Health
   fetch(`${API_BASE}/api/health`)
     .then(r => setConnectionStatus(r.ok))
     .catch(() => setConnectionStatus(false));
 
-  // Note: simulateNewMission() is called automatically once loadSyntheticDataset() finishes loading.
+  // 12. Restore Saved Session (if any) or Prompt Login on Page Entry
+  try {
+    const rawSaved = localStorage.getItem('aerotwin_operator') || sessionStorage.getItem('aerotwin_operator');
+    if (rawSaved) {
+      const saved = JSON.parse(rawSaved);
+      if (saved.user) {
+        document.getElementById('loginUser').value = saved.user;
+        const headerName = document.getElementById('headerOpName');
+        if (headerName) headerName.textContent = saved.user;
+      }
+      if (saved.role) {
+        selectLoginRole(saved.role, saved.user);
+        const headerRole = document.getElementById('headerOpRole');
+        if (headerRole) headerRole.textContent = saved.role;
+      }
+    }
+  } catch (e) {
+    console.warn("Session restore error", e);
+  }
+
+  // Pop login modal immediately on entering the website
+  toggleLoginModal(true);
 });

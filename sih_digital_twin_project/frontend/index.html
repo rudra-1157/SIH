@@ -47,6 +47,19 @@
     </div>
 
     <div class="header-right">
+      <!-- Operator Profile / Login Button -->
+      <div class="operator-profile-pill" id="openLoginBtn" title="Current Operator Ground Station Session • Click to Switch Operator">
+        <div class="op-avatar"><i class="fa-solid fa-user-shield"></i></div>
+        <div class="op-info">
+          <div class="op-role-row">
+            <span class="op-role" id="headerOpRole">FLIGHT TEST ENGR</span>
+            <span class="op-status-dot" title="Ground Station Uplink Active"></span>
+          </div>
+          <span class="op-name" id="headerOpName">operator@uav-defense.in</span>
+        </div>
+        <i class="fa-solid fa-chevron-down op-chevron"></i>
+      </div>
+
       <button class="header-report-btn" id="headerGenReportBtn" title="Generate Comprehensive Engineering Report">
         <i class="fa-solid fa-file-waveform"></i> Generate Report
       </button>
@@ -1120,51 +1133,87 @@
   </div>
 
   <!-- ================= SECTION 1: LOGIN MODAL SCREEN ================= -->
-  <div class="modal-overlay" id="loginModal" style="display:none;">
+  <div class="modal-overlay" id="loginModal" style="display:flex;">
     <div class="login-card-modal">
       <div class="login-modal-header">
-        <div class="login-sec-badge"><i class="fa-solid fa-user-lock"></i> 1. OPERATOR LOGIN</div>
-        <button class="close-modal-btn" id="closeLoginModal">&times;</button>
+        <div class="login-sec-badge"><i class="fa-solid fa-shield-halved"></i> GROUND STATION AUTHENTICATION</div>
+        <button class="close-modal-btn" id="closeLoginModal" title="Close / Continue to Homepage">&times;</button>
       </div>
       <div class="login-modal-body">
         <div class="login-brand-strip">
           <div class="brand-logo-circle"><i class="fa-solid fa-cube"></i></div>
           <div>
-            <h3>AeroTwin-AI</h3>
-            <p>Engine Health Monitoring &amp; Prediction</p>
+            <h3>AeroTwin-AI Digital Twin</h3>
+            <p>MALE UAV Aero-Piston Engine Telemetry Ground Station</p>
           </div>
         </div>
 
-        <div class="uav-preview-graphic">
-          <div class="uav-drone-art">
-            <i class="fa-solid fa-plane-departure drone-icon"></i>
-            <span>MALE UAV Surveillance Platform &bull; Unit 07</span>
+        <div class="login-sec-banner">
+          <div class="sec-banner-icon"><i class="fa-solid fa-lock"></i></div>
+          <div class="sec-banner-text">
+            <span class="sec-tag">RESTRICTED ACCESS</span>
+            <span class="sec-sub">DRDO-ADE MALE UAV PLATFORM &bull; TELEMETRY LINK SECURE</span>
+          </div>
+        </div>
+
+        <!-- Quick Role Switcher -->
+        <div class="login-role-selection">
+          <label class="role-sel-title"><i class="fa-solid fa-id-badge"></i> Select Operator Role</label>
+          <div class="role-presets-wrap">
+            <button type="button" class="role-preset-pill active" onclick="selectLoginRole('FLIGHT TEST ENGR', 'operator@uav-defense.in')">
+              <i class="fa-solid fa-user-gear"></i> Flight Engr
+            </button>
+            <button type="button" class="role-preset-pill" onclick="selectLoginRole('MISSION COMMANDER', 'commander@uav-defense.in')">
+              <i class="fa-solid fa-user-astronaut"></i> Commander
+            </button>
+            <button type="button" class="role-preset-pill" onclick="selectLoginRole('MAINTENANCE LEAD', 'maintenance@uav-defense.in')">
+              <i class="fa-solid fa-wrench"></i> Maintenance
+            </button>
+            <button type="button" class="role-preset-pill" onclick="selectLoginRole('AI TELEMETRY ANALYST', 'ai-analyst@uav-defense.in')">
+              <i class="fa-solid fa-brain"></i> AI Analyst
+            </button>
           </div>
         </div>
 
         <form id="loginForm" onsubmit="event.preventDefault(); fakeLogin();">
+          <input type="hidden" id="loginRole" value="FLIGHT TEST ENGR">
+          
           <div class="input-group">
-            <label><i class="fa-solid fa-user"></i> Username</label>
-            <input type="text" id="loginUser" placeholder="Enter username" value="operator@uav-defense.in" required>
+            <label><i class="fa-solid fa-user-check"></i> Operator Identifier / Call-sign</label>
+            <input type="text" id="loginUser" placeholder="Enter operator ID or email" value="operator@uav-defense.in" required>
           </div>
+
           <div class="input-group">
-            <label><i class="fa-solid fa-lock"></i> Password</label>
+            <label><i class="fa-solid fa-key"></i> Security Passkey</label>
             <div class="pwd-wrap">
-              <input type="password" id="loginPass" placeholder="Enter password" value="••••••••••••" required>
-              <i class="fa-regular fa-eye toggle-pwd" onclick="togglePasswordVisibility()"></i>
+              <input type="password" id="loginPass" placeholder="Enter station security passkey" value="AeroTwin2026Secure!" required>
+              <i class="fa-regular fa-eye toggle-pwd" onclick="togglePasswordVisibility()" title="Toggle visibility"></i>
             </div>
           </div>
+
           <div class="login-options-row">
             <label class="checkbox-label">
-              <input type="checkbox" checked> Remember me
+              <input type="checkbox" id="loginRemember" checked> Remember Station Session
             </label>
-            <a href="#" class="forgot-link">Forgot password?</a>
+            <span class="station-id-pill"><i class="fa-solid fa-satellite-dish"></i> GCS-NORTH-01</span>
           </div>
-          <button type="submit" class="btn-primary-login">LOGIN</button>
+
+          <div id="loginStatusMsg" class="login-status-box" style="display:none;"></div>
+
+          <button type="submit" class="btn-primary-login" id="btnLoginSubmit">
+            <span class="btn-login-text"><i class="fa-solid fa-right-to-bracket"></i> AUTHENTICATE &amp; ENTER HOMEPAGE</span>
+          </button>
+
+          <button type="button" class="btn-guest-login" onclick="quickGuestLogin()">
+            <i class="fa-solid fa-bolt"></i> Quick Demo Access (1-Click Guest Pass)
+          </button>
         </form>
       </div>
     </div>
   </div>
+
+  <!-- Global Toast Notification Container -->
+  <div id="appToastContainer" class="toast-container"></div>
 
 </div>
 
